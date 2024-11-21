@@ -8,6 +8,11 @@ uint16_t KEYBOARD_LAYOUTS[3];
 uint8_t NUM_LAYOUTS = 3;
 uint8_t cycle_layout_index;
 
+bool spam_config_active = false;
+bool spam_active = false;
+uint16_t spam_keycode;
+uint32_t spam_timer = 0;
+
 // for persistent storage
 typedef union {
   uint32_t raw;
@@ -27,7 +32,8 @@ enum alt_keycodes {
     DBG_MOU,                  // DEBUG Toggle Mouse Prints
     MD_BOOT,                  // restart into bootloader after hold timeout
     TOG_MD,                   // toggle keyboard mode (Linux(+Windows)/Mac)
-    CYC_LT                    // cycle keyboard layout (QWERTY, Dvorak, Colemak)
+    CYC_LT,                   // cycle keyboard layout (QWERTY, Dvorak, Colemak)
+    SPAM                      // spam key macro
 };
 
 enum layer_names {
@@ -38,7 +44,7 @@ enum layer_names {
     _MAC,     // MacOS layer
     _FN,      // function layer
     _MS,      // mouse keys layer
-    _RGB,     // RGB layer
+    _RGB      // RGB layer
 };
 
 // reperesent layer state (uint16_t) as a binary string for debug
@@ -94,7 +100,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_FN] = LAYOUT_65_ansi_blocker(
         KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, KC_INS,
         _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19, _______, _______, _______, KC_BRID, KC_BRIU,  KC_PSCR, KC_END,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
+        _______, _______, SPAM,    _______, _______, _______, _______, _______, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
         _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          MO(_RGB), TOG_MD,
         _______, _______, _______,                            DB_TOGG,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
     ),
@@ -158,8 +164,33 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     static uint32_t key_timer;
+
+    // activate spam
+    if (spam_config_active && record->event.pressed && keycode != KC_ESC) {
+        spam_keycode = keycode;
+        spam_config_active = false;
+        spam_active = true;
+        spam_timer = timer_read32();
+        dprint("SPAM ACTIVE\n");
+    }
+
     switch (keycode) {
+        case KC_ESC:
+            // deactivate spam config & spam
+            if (record->event.pressed) {
+                spam_config_active = false;
+                spam_active = false;
+            }
+            return true;
+        case SPAM:
+            // activate spam config
+            if (record->event.pressed) {
+                spam_config_active = true;
+                dprint("SPAM CONFIG ACTIVE\n");
+            }
+            return false;
         case TOG_MD:
+            // toggle keyboard mode (Linux(+Windows)/Mac)
             if (record->event.pressed) {
                 if (IS_LAYER_ON(_MAC)) {
                     layer_off(_MAC);
@@ -187,6 +218,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
         case CYC_LT:
+            // cycle through keyboard layouts (QWERTY, Dvorak, Colemak)
             if (record->event.pressed) {
                 default_layer_set(1 << KEYBOARD_LAYOUTS[cycle_layout_index]);
                 dprintf("layer turned OFF: %u\n", KEYBOARD_LAYOUTS[cycle_layout_index]);
@@ -274,5 +306,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         default:
             return true; // process all other keycodes normally
+    }
+}
+
+void matrix_scan_user() {
+    if (spam_active) {
+        if (timer_elapsed32(spam_timer) > SPAM_DELAY) {
+            tap_code(spam_keycode);
+            dprintf("keycode pressed: %u\n", spam_keycode);
+            spam_timer = timer_read32();
+        }
     }
 }
