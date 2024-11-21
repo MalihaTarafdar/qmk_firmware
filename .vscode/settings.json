@@ -7,7 +7,15 @@
         "**/.build": true,
         "**/*.hex": true,
         "**/*.bin": true,
-        "**/*.uf2": true
+        "**/*.uf2": true,
+        "**/keyboards/[^m]*/**": true,
+        "**/keyboards/m[^a]*/**": true,
+        "**/keyboards/ma[^s]*/**": true,
+        "**/keyboards/mas[^s]*/**": true,
+        "**/keyboards/mass[^d]*/**": true,
+        "**/keyboards/massd[^r]*/**": true,
+        "**/keyboards/massdr[^o]*/**": true,
+        "**/keyboards/massdro[^p]*/**": true
     },
     "files.associations": {
         "*.h": "c",
@@ -30,5 +38,7 @@
     },
     "clangd.arguments": [
         "--header-insertion=never"
-    ]
+    ],
+    "cSpell.enabled": false,
+    "editor.inlayHints.enabled": "offUnlessPressed"
 }

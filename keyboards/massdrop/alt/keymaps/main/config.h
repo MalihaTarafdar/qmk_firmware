@@ -1,0 +1,6 @@
+#pragma once
+
+#define TAPPING_TOGGLE 2
+
+#define JOYSTICK_BUTTON_COUNT 32
+#define JOYSTICK_AXIS_COUNT 2
