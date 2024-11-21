@@ -33,7 +33,8 @@ enum alt_keycodes {
     MD_BOOT,                  // restart into bootloader after hold timeout
     TOG_MD,                   // toggle keyboard mode (Linux(+Windows)/Mac)
     CYC_LT,                   // cycle keyboard layout (QWERTY, Dvorak, Colemak)
-    SPAM                      // spam key macro
+    SPAM,                     // spam key macro
+    DMACRO                    // disable function layer & enable macro layer
 };
 
 enum layer_names {
@@ -43,6 +44,7 @@ enum layer_names {
     _LIN,     // Linux layer
     _MAC,     // MacOS layer
     _FN,      // function layer
+    _DM,      // dynamic macro layer
     _MS,      // mouse keys layer
     _RGB      // RGB layer
 };
@@ -98,11 +100,18 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL, _______, KC_LGUI,                            _______,                            KC_RGUI, _______, _______, _______, _______
     ),
     [_FN] = LAYOUT_65_ansi_blocker(
-        KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, KC_INS,
-        _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19, _______, _______, _______, KC_BRID, KC_BRIU,  KC_PSCR, KC_END,
-        _______, _______, SPAM,    _______, _______, _______, _______, _______, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
-        _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          MO(_RGB), TOG_MD,
+        KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_INS,
+        _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  _______, _______, _______, KC_BRID, KC_BRIU, KC_PSCR, KC_END,
+        _______, _______, SPAM,    DMACRO,  _______, KC_HOME, KC_END,  KC_PGUP, KC_PGDN, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
+        _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          MO(_RGB),TOG_MD,
         _______, _______, _______,                            DB_TOGG,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
+    ),
+    [_DM] = LAYOUT_65_ansi_blocker(
+        TG(_DM), _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, DM_REC1,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, DM_REC2,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______, DM_PLY1,
+        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,          _______, DM_PLY2,
+        _______, _______, _______,                            _______,                            _______, _______, _______, _______, _______
     ),
     [_MS] = LAYOUT_65_ansi_blocker(
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_ACL0, MS_ACL1, MS_ACL2, XXXXXXX, XXXXXXX,
@@ -150,14 +159,19 @@ void eeconfig_init_user() {
 }
 
 layer_state_t layer_state_set_user(layer_state_t state) {
-    // REMOVE
-    char *tmp = layer_state_to_binary_string(user_config.saved_layer_state);
-    dprintf("Read Layer State:\t%s (%u)\n", tmp, user_config.saved_layer_state);
-    free(tmp);
+    char *read_layer_state = layer_state_to_binary_string(user_config.saved_layer_state);
+    dprintf("Read Layer State:\t%s (%u)\n", read_layer_state, user_config.saved_layer_state);
+    free(read_layer_state);
 
     char *cur_state = layer_state_to_binary_string(state);
     dprintf("Current State:\t%s (%u), Highest Layer: %u\n", cur_state, state, get_highest_layer(state));
     free(cur_state);
+
+    // turn off function layer if dynamic macro layer is on
+    if (IS_LAYER_ON_STATE(state, _DM) && IS_LAYER_ON_STATE(state, _FN)) {
+        state -= (1 << _FN);
+        layer_off(_FN);
+    }
 
     return state;
 }
@@ -189,6 +203,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 dprint("SPAM CONFIG ACTIVE\n");
             }
             return false;
+        case DMACRO:
+            // layer_off(_FN); // _FN is re-enabled on FN key release
+            layer_on(_DM);
+            dprint("DYNAMIC MACROS ON\n");
+            return false;
         case TOG_MD:
             // toggle keyboard mode (Linux(+Windows)/Mac)
             if (record->event.pressed) {
@@ -201,20 +220,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 } else {
                     layer_on(_LIN);
                 }
-                // REMOVE
-                char *tmp2 = layer_state_to_binary_string(layer_state);
-                dprintf("WB Layer State:\t%s (%u)\n", tmp2, layer_state);
-                free(tmp2);
+                char *wb_layer_state = layer_state_to_binary_string(layer_state);
+                dprintf("WB Layer State:\t%s (%u)\n", wb_layer_state, layer_state);
+                free(wb_layer_state);
 
                 // write layer state to EEPROM
                 // user_config.saved_layer_state = layer_state & ~(1 << (_FN + 1)); // remove function layer from layer mask
                 user_config.saved_layer_state = layer_state - (1 << _FN); // remove function layer from layer mask
                 eeconfig_update_user(user_config.raw);
 
-                // REMOVE
-                char *tmp = layer_state_to_binary_string(user_config.saved_layer_state);
-                dprintf("WA Layer State:\t%s (%u)\n", tmp, user_config.saved_layer_state);
-                free(tmp);
+                char *wa_layer_state = layer_state_to_binary_string(user_config.saved_layer_state);
+                dprintf("WA Layer State:\t%s (%u)\n", wa_layer_state, user_config.saved_layer_state);
+                free(wa_layer_state);
             }
             return false;
         case CYC_LT:
