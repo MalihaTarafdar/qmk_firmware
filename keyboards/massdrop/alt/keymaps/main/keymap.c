@@ -1,5 +1,4 @@
 #include QMK_KEYBOARD_H
-#include "joystick.h"
 
 // NOTE: must toggle function instead of momentary activation to start recording dynamic macros
 
@@ -27,7 +26,6 @@ enum layer_names {
     _CMK,     // Colemak layout layer
     _FN,      // function layer
     _MS,      // mouse keys layer
-    _JS,      // joystick layer
     _RGB      // RGB layer
 };
 
@@ -333,7 +331,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [_FN] = LAYOUT_65_ansi_blocker(
         KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_INS,
-        _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  _______, _______, TG(_JS), KC_BRID, KC_BRIU, KC_PSCR, KC_END,
+        _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  _______, _______, _______, KC_BRID, KC_BRIU, KC_PSCR, KC_END,
         _______, KO_TOGG, SPAM,    _______, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
         _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          TT(_RGB),CYC_MD,
         _______, _______, _______,                            DB_TOGG,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
@@ -343,13 +341,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         XXXXXXX, XXXXXXX, MS_UP,   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_BTN4, MS_WHLU, MS_BTN5, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, MS_LEFT, MS_DOWN, MS_RGHT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_WHLL, MS_WHLD, MS_WHLR,          XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, TG(_MS), MS_BTN3, MS_BTN1, MS_BTN2, XXXXXXX,          XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX,                            XXXXXXX,                            XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
-    ),
-    [_JS] = LAYOUT_65_ansi_blocker(
-        TG(_JS), XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, JS_0,    XXXXXXX, JS_1,    XXXXXXX, XXXXXXX, XXXXXXX, JS_4,    XXXXXXX, JS_5,    TG(_JS), XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, JS_2,    JS_3,    XXXXXXX, XXXXXXX, JS_7,    JS_6,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX,                            XXXXXXX,                            XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
     ),
     [_RGB] = LAYOUT_65_ansi_blocker(
@@ -378,11 +369,6 @@ void init_user(void) {
     layout_index = CYCLE_LAYOUT_START;
 
     spam_init();
-
-    // joystick init
-    for (int i = 0; i < JOYSTICK_BUTTON_COUNT; i++) {
-        joystick_set_button(i, false);
-    }
 }
 
 void keyboard_post_init_user() {
@@ -422,16 +408,6 @@ bool keycode_is_spamable(uint16_t keycode) {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     static uint32_t key_timer;
-
-    // joystick button handling
-    if (keycode >= JS_0 && keycode <= JS_7) {
-        if (record->event.pressed) {
-            joystick_set_button(keycode - JS_0, true);
-        } else {
-            joystick_set_button(keycode - JS_0, false);
-        }
-        return false;
-    }
 
     // activate spam
     if (spam_config_active && keycode_is_spamable(keycode)) {
