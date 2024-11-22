@@ -1,5 +1,20 @@
 #pragma once
 
 #define TAPPING_TOGGLE 2
+#define DUMMY_MOD_NEUTRALIZER_KEYCODE KC_RIGHT_CTRL
 
-#define SPAM_DELAY 150 // ms
+#define MK_3_SPEED
+#define MK_C_OFFSET_0 4
+#define MK_C_INTERVAL_0 7
+#define MK_C_OFFSET_1 16
+#define MK_C_INTERVAL_1 7
+#define MK_C_OFFSET_2 32
+#define MK_C_INTERVAL_2 7
+#define MK_W_OFFSET_0 1
+#define MK_W_INTERVAL_0 150
+#define MK_W_OFFSET_1 1
+#define MK_W_INTERVAL_1 50
+#define MK_W_OFFSET_2 1
+#define MK_W_INTERVAL_2 10
+
+#define SPAM_DELAY 150
