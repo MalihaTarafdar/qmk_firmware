@@ -40,5 +40,18 @@
         "--header-insertion=never"
     ],
     "cSpell.enabled": false,
-    "editor.inlayHints.enabled": "offUnlessPressed"
+    "editor.inlayHints.enabled": "offUnlessPressed",
+    "todo-tree.general.tags": [
+        "BUG",
+        "HACK",
+        "FIX",
+        "FIXME",
+        "FIXIT",
+        "TODO",
+        "[x]",
+        "REMOVE",
+        "NOTE",
+        "HANDLE ERROR",
+        "WARNING"
+    ]
 }

@@ -2,10 +2,9 @@
 
 // NOTE: must toggle function instead of momentary activation to start recording dynamic macros
 
-// #define MODS_ONLY_SFT ((get_mods() & ~MOD_MASK_SHIFT) == 0 && (get_mods() & MOD_MASK_SHIFT))
-// #define MODS_ONLY_CTL ((get_mods() & ~MOD_MASK_CTRL) == 0 && (get_mods() & MOD_MASK_CTRL))
-// #define MODS_ONLY_ALT ((get_mods() & ~MOD_MASK_ALT) == 0 && (get_mods() & MOD_MASK_ALT))
-// #define MODS_ONLY_GUI ((get_mods() & ~MOD_MASK_GUI) == 0 && (get_mods() & MOD_MASK_GUI))
+#define LCG(kc) (QK_LCTL | QK_LGUI | (kc))
+
+uint8_t rgb_debug_led = 0;
 
 enum alt_keycodes {
     U_T_AUTO = SAFE_RANGE,    // USB Extra Port Toggle Auto Detect / Always Active
@@ -17,7 +16,8 @@ enum alt_keycodes {
     MD_BOOT,                  // restart into bootloader after hold timeout
     CYC_MD,                   // cycle keyboard mode
     CYC_LT,                   // cycle keyboard layout
-    SPAM                     // spam key macro
+    SPAM,                     // spam key macro
+    DBG_TST                   // programmable debug test key
 };
 
 enum layer_names {
@@ -82,12 +82,18 @@ uint32_t spam_timer;
  *     [11] CTL + BSPC -> SFT + HOME, BSPC : delete to beginning of line
  *     [12] CTL + DEL -> SFT + END, BSPC : delete to end of line
  *
+ * Windows Mode
+ *     [14] GUI + LEFT -> GUI + CTL + LEFT : move desktop left
+ *     [15] GUI + RGHT -> GUI + CTL + RGHT : move desktop right
+ *     [16] GUI + UP -> GUI + TAB : launch task view
+ *
  * MacOS Mode
  *     [13] GUI + DEL -> SFT + END, BSPC : delete to end of line
 */
 
 bool mode_is_linux_or_windows = false;
 bool mode_is_macos = false;
+bool mode_is_windows = false;
 
 bool shct11_action(bool activated, void *context) {
     if (activated) {
@@ -267,6 +273,42 @@ const key_override_t shct13_override = {
         .replacement                            = KC_NO,
         .enabled                                = &mode_is_macos
 };
+const key_override_t shct14_override = {
+        .trigger_mods                           = MOD_MASK_GUI,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_GUI,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CSA,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_LEFT,
+        .replacement                            = LCG(KC_LEFT),
+        .enabled                                = &mode_is_windows
+};
+const key_override_t shct15_override = {
+        .trigger_mods                           = MOD_MASK_GUI,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_GUI,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CSA,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_RGHT,
+        .replacement                            = LCG(KC_RGHT),
+        .enabled                                = &mode_is_windows
+};
+const key_override_t shct16_override = {
+        .trigger_mods                           = MOD_MASK_GUI,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_GUI,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CSA,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_UP,
+        .replacement                            = LGUI(KC_TAB),
+        .enabled                                = &mode_is_windows
+};
 
 const key_override_t *key_overrides[] = {
     &shct1_override,
@@ -281,7 +323,10 @@ const key_override_t *key_overrides[] = {
     &shct10_override,
     &shct11_override,
     &shct12_override,
-    &shct13_override
+    &shct13_override,
+    &shct14_override,
+    &shct15_override,
+    &shct16_override
 };
 
 typedef union {
@@ -332,9 +377,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_FN] = LAYOUT_65_ansi_blocker(
         KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_INS,
         _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  _______, _______, _______, KC_BRID, KC_BRIU, KC_PSCR, KC_END,
-        _______, KO_TOGG, SPAM,    _______, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
+        _______, KO_TOGG, SPAM,    DB_TOGG, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
         _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          TT(_RGB),CYC_MD,
-        _______, _______, _______,                            DB_TOGG,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
+        _______, _______, _______,                            DBG_TST,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
     ),
     [_MS] = LAYOUT_65_ansi_blocker(
         TG(_MS), XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_ACL0, MS_ACL1, MS_ACL2, XXXXXXX, XXXXXXX,
@@ -369,6 +414,9 @@ void init_user(void) {
     layout_index = CYCLE_LAYOUT_START;
 
     spam_init();
+
+    // rgb_matrix_sethsv_noeeprom(HSV_OFF);
+    rgb_matrix_mode(RGB_MATRIX_CUSTOM_CUSTOM_SNAKE);
 }
 
 void keyboard_post_init_user() {
@@ -380,6 +428,7 @@ void keyboard_post_init_user() {
         mode_index = user_config.mode_index;
         mode_is_linux_or_windows = (mode_index == M_LINUX || mode_index == M_WINDOWS);
         mode_is_macos = (mode_index == M_MACOS);
+        mode_is_windows = (mode_index == M_WINDOWS);
 
         layout_index = user_config.layout_index;
     }
@@ -424,21 +473,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     mod_state = get_mods();
 
     switch (keycode) {
-        case KC_ESC:
-            // deactivate spam config & spam
+        case DBG_TST:
             if (record->event.pressed) {
-                if (spam_config_active || spam_active) {
-                    spam_init();
-                    dprintf("spam_config_active: %u\n", spam_config_active);
-                    return false;
-                }
-            }
-            return true;
-        case SPAM:
-            // activate spam config
-            if (record->event.pressed) {
-                spam_config_active = !spam_config_active;
-                dprintf("spam_config_active: %u\n", spam_config_active);
+                rgb_debug_led++;
             }
             return false;
         case CYC_MD:
@@ -449,10 +486,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
                 mode_is_linux_or_windows = (mode_index == M_LINUX || mode_index == M_WINDOWS);
                 mode_is_macos = (mode_index == M_MACOS);
+                mode_is_windows = (mode_index == M_WINDOWS);
 
                 // write mode_index to EEPROM
                 user_config.mode_index = mode_index;
                 eeconfig_update_user(user_config.raw);
+                dprintf("mode_index [EEPROM]: %u\n", user_config.mode_index);
             }
             return false;
         case CYC_LT:
@@ -472,6 +511,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // write layout_index to EEPROM
                 user_config.layout_index = layout_index;
                 eeconfig_update_user(user_config.raw);
+                dprintf("layout_index [EEPROM]: %u\n", user_config.layout_index);
+            }
+            return false;
+        case KC_ESC:
+            // deactivate spam config & spam
+            if (record->event.pressed) {
+                if (spam_config_active || spam_active) {
+                    spam_init();
+                    dprintf("spam_config_active: %u\n", spam_config_active);
+                    return false;
+                }
+            }
+            return true;
+        case SPAM:
+            // activate spam config
+            if (record->event.pressed) {
+                spam_config_active = !spam_config_active;
+                dprintf("spam_config_active: %u\n", spam_config_active);
             }
             return false;
         case KC_LCTL:
@@ -602,6 +659,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         default:
             return true; // process all other keycodes normally
     }
+}
+
+bool rgb_matrix_indicators_user() {
+    // rgb_matrix_set_color(rgb_debug_led, 255, 255, 255);
+
+    return true;
 }
 
 void matrix_scan_user() {
