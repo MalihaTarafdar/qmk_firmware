@@ -16,7 +16,8 @@ enum alt_keycodes {
     MD_BOOT,                  // restart into bootloader after hold timeout
     CYC_MD,                   // cycle keyboard mode
     CYC_LT,                   // cycle keyboard layout
-    SPAM,                     // spam key macro
+    DM_SPAM,                  // spam key custom dynamic macro
+    MS_CLK,                   // mouse keys momentary layer + click on release
     DBG_TST                   // programmable debug test key
 };
 
@@ -310,6 +311,38 @@ const key_override_t shct16_override = {
         .enabled                                = &mode_is_windows
 };
 
+bool ms_override_action(bool activated, void *context) {
+    if (activated) {
+        layer_on(_MS);
+    } else {
+        layer_off(_MS);
+        if (get_mods() & MOD_BIT_LSHIFT) {
+            unregister_mods(MOD_BIT_LSHIFT);
+            return false;
+        }
+        if (!(get_mods() & MOD_BIT_RSHIFT)) {
+            tap_code16(MS_BTN1);
+        } else {
+            unregister_mods(MOD_BIT_RSHIFT);
+            tap_code16(MS_BTN2);
+        }
+    }
+    return false;
+}
+
+const key_override_t ms_override = {
+        .trigger_mods                           = 0,
+        .layers                                 = ~(1 << _MS),
+        .suppressed_mods                        = 0,
+        .options                                = ko_option_no_unregister_on_other_key_down,
+        .negative_mod_mask                      = 0,
+        .custom_action                          = ms_override_action,
+        .context                                = NULL,
+        .trigger                                = MS_CLK,
+        .replacement                            = KC_NO,
+        .enabled                                = NULL
+};
+
 const key_override_t *key_overrides[] = {
     &shct1_override,
     &shct2_override,
@@ -326,7 +359,8 @@ const key_override_t *key_overrides[] = {
     &shct13_override,
     &shct14_override,
     &shct15_override,
-    &shct16_override
+    &shct16_override,
+    &ms_override
 };
 
 typedef union {
@@ -377,16 +411,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_FN] = LAYOUT_65_ansi_blocker(
         KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_INS,
         _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  _______, _______, _______, KC_BRID, KC_BRIU, KC_PSCR, KC_END,
-        _______, KO_TOGG, SPAM,    DB_TOGG, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, _______, _______, KC_SCRL, KC_PAUS,          _______, CYC_LT,
-        _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          TT(_RGB),CYC_MD,
+        _______, _______, DM_SPAM, DB_TOGG, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, KO_TOGG, CYC_LT,  KC_SCRL, KC_PAUS,          _______, CYC_MD,
+        _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          TT(_RGB),MS_CLK,
         _______, _______, _______,                            DBG_TST,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
     ),
     [_MS] = LAYOUT_65_ansi_blocker(
-        TG(_MS), XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_ACL0, MS_ACL1, MS_ACL2, XXXXXXX, XXXXXXX,
+        TG(_MS), MS_ACL0, MS_ACL1, MS_ACL2, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_ACL0, MS_ACL1, MS_ACL2, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, MS_UP,   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_BTN4, MS_WHLU, MS_BTN5, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, MS_LEFT, MS_DOWN, MS_RGHT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, MS_WHLL, MS_WHLD, MS_WHLR,          XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, TG(_MS), MS_BTN3, MS_BTN1, MS_BTN2, XXXXXXX,          XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX,                            XXXXXXX,                            XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
+        _______, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, TG(_MS), MS_BTN3, MS_BTN1, MS_BTN2, _______,          KC_UP,   _______,
+        _______, _______, _______,                            KC_SPC,                             _______, _______, KC_LEFT, KC_DOWN, KC_RGHT
     ),
     [_RGB] = LAYOUT_65_ansi_blocker(
         TG(_RGB),XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
@@ -414,9 +448,6 @@ void init_user(void) {
     layout_index = CYCLE_LAYOUT_START;
 
     spam_init();
-
-    // rgb_matrix_sethsv_noeeprom(HSV_OFF);
-    rgb_matrix_mode(RGB_MATRIX_CUSTOM_CUSTOM_SNAKE);
 }
 
 void keyboard_post_init_user() {
@@ -450,7 +481,7 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 bool keycode_is_spamable(uint16_t keycode) {
     return keycode != KC_ESC && keycode != KO_TOGG && keycode != NK_TOGG && keycode != DB_TOGG &&
             keycode != TT(_FN) && keycode != TT(_RGB) && keycode != TG(_MS) &&
-            keycode != CYC_MD && keycode != CYC_LT && keycode != SPAM &&
+            keycode != CYC_MD && keycode != CYC_LT && keycode != DM_SPAM &&
             keycode != DM_REC1 && keycode != DM_REC2 && keycode != DM_PLY1 && keycode != DM_PLY2 &&
             keycode != MD_BOOT && keycode != EE_CLR && keycode != U_T_AUTO && keycode != U_T_AGCR;
 }
@@ -524,7 +555,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             return true;
-        case SPAM:
+        case DM_SPAM:
             // activate spam config
             if (record->event.pressed) {
                 spam_config_active = !spam_config_active;
@@ -625,7 +656,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 key_timer = timer_read32();
             } else {
-                if (timer_elapsed32(key_timer) >= 250) {
+                if (timer_elapsed32(key_timer) >= BOOT_DELAY) {
                     reset_keyboard();
                 }
             }
