@@ -1,6 +1,6 @@
 #include QMK_KEYBOARD_H
 
-// NOTE: must toggle function instead of momentary activation to start recording dynamic macros
+// NOTE: must toggle function layer instead of momentary activation to start recording dynamic macros
 
 #define LCG(kc) (QK_LCTL | QK_LGUI | (kc))
 
@@ -45,7 +45,7 @@ uint8_t mod_state;
  *     - KC_RALT: send KC_RGUI instead
  * Windows
  *     - KC_LCTL: send KC_LGUI instead
- *     - KC_LGUI: send KC_LALT instead
+ *     - KC_LGUI: send KC_RALT instead (note KC_RALT)
  *     - KC_LALT: send KC_LCTL instead
  *     - KC_RALT: send KC_RCTL instead
 */
@@ -68,6 +68,8 @@ uint16_t spam_keycode;
 uint32_t spam_timer;
 
 /* Custom Shortcuts
+ * [NO] trigger -> replacement : description
+ *
  * Linux/Windows Mode
  * For the following shortcuts, only SFT may also be active.
  *     [1] ALT + LEFT -> CTL + LEFT : move word left
@@ -87,6 +89,11 @@ uint32_t spam_timer;
  *     [14] GUI + LEFT -> GUI + CTL + LEFT : move desktop left
  *     [15] GUI + RGHT -> GUI + CTL + RGHT : move desktop right
  *     [16] GUI + UP -> GUI + TAB : launch task view
+ *     [17] GUI + ALT + LEFT -> GUI + LEFT : snap left
+ *     [18] GUI + ALT + RGHT -> GUI + RGHT : snap right
+ *     [19] GUI + ALT + UP -> GUI + UP : maximize window
+ *     [20] GUI + ALT + DOWN -> GUI + DOWN : minimize window
+ *     [21] GUI + SFT + ALT + UP -> GUI + SFT + UP : stretch window vertical
  *
  * MacOS Mode
  *     [13] GUI + DEL -> SFT + END, BSPC : delete to end of line
@@ -310,6 +317,66 @@ const key_override_t shct16_override = {
         .replacement                            = LGUI(KC_TAB),
         .enabled                                = &mode_is_windows
 };
+const key_override_t shct17_override = {
+        .trigger_mods                           = MOD_MASK_AG,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_AG,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CS,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_LEFT,
+        .replacement                            = LGUI(KC_LEFT),
+        .enabled                                = &mode_is_windows
+};
+const key_override_t shct18_override = {
+        .trigger_mods                           = MOD_MASK_AG,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_AG,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CS,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_RGHT,
+        .replacement                            = LGUI(KC_RGHT),
+        .enabled                                = &mode_is_windows
+};
+const key_override_t shct19_override = {
+        .trigger_mods                           = MOD_MASK_AG,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_AG,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CS,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_UP,
+        .replacement                            = LGUI(KC_UP),
+        .enabled                                = &mode_is_windows
+};
+const key_override_t shct20_override = {
+        .trigger_mods                           = MOD_MASK_AG,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_AG,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CS,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_DOWN,
+        .replacement                            = LGUI(KC_DOWN),
+        .enabled                                = &mode_is_windows
+};
+const key_override_t shct21_override = {
+        .trigger_mods                           = MOD_MASK_SAG,
+        .layers                                 = ~0, // all layers
+        .suppressed_mods                        = MOD_MASK_SAG,
+        .options                                = ko_options_default,
+        .negative_mod_mask                      = MOD_MASK_CTRL,
+        .custom_action                          = NULL,
+        .context                                = NULL,
+        .trigger                                = KC_UP,
+        .replacement                            = LGUI(KC_UP),
+        .enabled                                = &mode_is_windows
+};
 
 bool ms_override_action(bool activated, void *context) {
     if (activated) {
@@ -360,6 +427,11 @@ const key_override_t *key_overrides[] = {
     &shct14_override,
     &shct15_override,
     &shct16_override,
+    &shct17_override,
+    &shct18_override,
+    &shct19_override,
+    &shct20_override,
+    &shct21_override,
     &ms_override
 };
 
@@ -426,8 +498,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         TG(_RGB),XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, RGB_SPD, RGB_VAI, RGB_SPI, RGB_HUI, RGB_SAI, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, RGB_RMOD,RGB_VAD, RGB_MOD, RGB_HUD, RGB_SAD, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          XXXXXXX, XXXXXXX,
-        XXXXXXX, RGB_TOG, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          _______, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX,                            XXXXXXX,                            XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
+        _______, RGB_TOG, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, _______,          _______, XXXXXXX,
+        _______, _______, _______,                            XXXXXXX,                            _______, _______, XXXXXXX, XXXXXXX, XXXXXXX
     )
 };
 
@@ -448,6 +520,8 @@ void init_user(void) {
     layout_index = CYCLE_LAYOUT_START;
 
     spam_init();
+
+    rgb_matrix_mode_noeeprom(RGB_MATRIX_CUSTOM_SOLID_REACTIVE_V2);
 }
 
 void keyboard_post_init_user() {
@@ -574,12 +648,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return true;
         case KC_LGUI:
-            if (mode_index == M_LINUX || mode_index == M_MACOS || mode_index == M_WINDOWS) {
+            if (mode_index == M_LINUX || mode_index == M_MACOS) {
                 // send KC_LALT instead of KC_LGUI
                 if (record->event.pressed) {
                     register_code(KC_LALT);
                 } else {
                     unregister_code(KC_LALT);
+                }
+                return false;
+            }
+            if (mode_index == M_WINDOWS) {
+                // send KC_RALT instead of KC_LGUI
+                if (record->event.pressed) {
+                    register_code(KC_RALT);
+                } else {
+                    unregister_code(KC_RALT);
                 }
                 return false;
             }
