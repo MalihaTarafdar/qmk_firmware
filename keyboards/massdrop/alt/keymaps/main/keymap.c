@@ -581,6 +581,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case DBG_TST:
             if (record->event.pressed) {
                 rgb_debug_led++;
+                dprintf("DEBUG LED: %u\n", rgb_debug_led);
             }
             return false;
         case CYC_MD:
@@ -776,7 +777,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
 bool rgb_matrix_indicators_user() {
-    // rgb_matrix_set_color(rgb_debug_led, 255, 255, 255);
+    // rgb_matrix_set_color(rgb_debug_led, 255, 0, 0);
 
     return true;
 }
