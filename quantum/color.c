@@ -97,6 +97,56 @@ RGB hsv_to_rgb_impl(HSV hsv, bool use_cie) {
     return rgb;
 }
 
+HSV rgb_to_hsv_impl(RGB rgb, bool use_cie) {
+    HSV hsv;
+    uint8_t r, g, b;
+    uint8_t c_min, c_max, delta;
+
+    r = rgb.r;
+    g = rgb.g;
+    b = rgb.b;
+
+#ifdef USE_CIE1931_CURVE
+    if (use_cie) {
+        r = pgm_read_byte(&CIE1931_CURVE[rgb.r]);
+        g = pgm_read_byte(&CIE1931_CURVE[rgb.g]);
+        b = pgm_read_byte(&CIE1931_CURVE[rgb.b]);
+    }
+#endif
+
+    c_max = r;
+    if (g > c_max) c_max = g;
+    if (b > c_max) c_max = b;
+
+    c_min = r;
+    if (g < c_min) c_min = g;
+    if (b < c_min) c_min = b;
+
+    delta = c_max - c_min;
+
+    // hsv.h
+    if (delta == 0) {
+        hsv.h = 0;
+    } else if (c_max == r) {
+        hsv.h = 43 * (g - b) / delta;
+    } else if (c_max == g) {
+        hsv.h = 85 + 43 * (b - r) / delta;
+    } else if (c_max == b) {
+        hsv.h = 171 + 43 * (r - g) / delta;
+    }
+
+    // wrap hue + ensure >= 0
+    hsv.h = (hsv.h + 255) % 255;
+
+    // hsv.s
+    hsv.s = (c_max != 0) ? delta * 255 / c_max : 0;
+
+    // hsv.v
+    hsv.v = c_max;
+
+    return hsv;
+}
+
 RGB hsv_to_rgb(HSV hsv) {
 #ifdef USE_CIE1931_CURVE
     return hsv_to_rgb_impl(hsv, true);
@@ -107,6 +157,18 @@ RGB hsv_to_rgb(HSV hsv) {
 
 RGB hsv_to_rgb_nocie(HSV hsv) {
     return hsv_to_rgb_impl(hsv, false);
+}
+
+HSV rgb_to_hsv(RGB rgb) {
+#ifdef USE_CIE1931_CURVE
+    return rgb_to_hsv_impl(rgb, true);
+#else
+    return rgb_to_hsv_impl(rgb, false);
+#endif
+}
+
+HSV rgb_to_hsv_nocie(RGB rgb) {
+    return rgb_to_hsv_impl(rgb, false);
 }
 
 #ifdef WS2812_RGBW

@@ -111,6 +111,8 @@ typedef struct PACKED HSV {
 
 RGB hsv_to_rgb(HSV hsv);
 RGB hsv_to_rgb_nocie(HSV hsv);
+HSV rgb_to_hsv(RGB rgb);
+HSV rgb_to_hsv_nocie(RGB rgb);
 #ifdef WS2812_RGBW
 void convert_rgb_to_rgbw(rgb_led_t *led);
 #endif

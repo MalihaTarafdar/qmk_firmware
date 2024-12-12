@@ -21,6 +21,9 @@
 #define SPAM_DELAY 100
 
 
+#undef USE_CIE1931_CURVE
+
+
 // disable all effects enabled by Massdrop maintainers
 #undef ENABLE_RGB_MATRIX_ALPHAS_MODS
 #undef ENABLE_RGB_MATRIX_GRADIENT_UP_DOWN
