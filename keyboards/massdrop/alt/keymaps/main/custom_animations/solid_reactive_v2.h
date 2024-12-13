@@ -12,10 +12,12 @@ typedef RGB (*custom_reactive_f)(RGB rgb, uint16_t offset);
 const RGB srv2_rgb_keys = SET_RGB(100, 235, 255);
 const RGB srv2_rgb_strip = SET_RGB(130, 255, 230);
 const RGB srv2_rgb6 = SET_RGB(70, 235, 255);
-// const RGB srv2_rgb_press = SET_RGB(0, 40, 255);
+// const RGB srv2_rgb_press = SET_RGB(0, 50, 255);
 
-const uint8_t dr = 100;
-const uint8_t dg = 195;
+const uint8_t srv2_strip_start = 67;
+
+const uint8_t srv2_dr = 100;
+const uint8_t srv2_dg = 185;
 
 static bool custom_effect_runner_reactive(effect_params_t* params, custom_reactive_f effect_func, RGB base_colors[]) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
@@ -41,12 +43,20 @@ static bool custom_effect_runner_reactive(effect_params_t* params, custom_reacti
 
 static RGB SOLID_REACTIVE_V2_math(RGB rgb, uint16_t offset) {
     // key press = srv2_rgb_press
-    // inverse offset, scale to dr & dg
-    uint8_t r = qsub8(rgb.r, scale8(255 - offset, dr));
-    uint8_t g = qsub8(rgb.g, scale8(255 - offset, dg));
+    // inverse offset, scale to srv2_dr & srv2_dg
+    uint8_t r = qsub8(rgb.r, scale8(255 - offset, srv2_dr));
+    uint8_t g = qsub8(rgb.g, scale8(255 - offset, srv2_dg));
     uint8_t b = rgb.b;
 
     RGB rgb_f = SET_RGB(r, g, b);
+
+    // match with config hsv.v
+    if (rgb_matrix_config.hsv.v < 255) {
+        HSV hsv_f = rgb_to_hsv(rgb_f);
+        hsv_f.v = rgb_matrix_config.hsv.v;
+        rgb_f = hsv_to_rgb(hsv_f);
+    }
+
     return rgb_f;
 }
 
@@ -66,7 +76,7 @@ bool SOLID_REACTIVE_V2(effect_params_t* params) {
 
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     for (uint8_t i = led_min; i < led_max; i++) {
-        base_colors[i] = (i < 67) ? srv2_rgb_keys : srv2_rgb_strip;
+        base_colors[i] = (i < srv2_strip_start) ? srv2_rgb_keys : srv2_rgb_strip;
     }
 
     // fix for key 6

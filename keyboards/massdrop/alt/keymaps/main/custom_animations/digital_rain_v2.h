@@ -2,20 +2,22 @@
 RGB_MATRIX_EFFECT(DIGITAL_RAIN_V2)
 #   ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
-#define RGB_DIGITAL_RAIN_DROPS 24
+// lower the number for denser effect/wider keyboard
+#define RGB_DIGITAL_RAIN_DROPS 20
 
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
-const RGB drv2_rgb_keys = SET_RGB(100, 235, 255);
-const RGB drv2_rgb_strip = SET_RGB(130, 255, 230);
+// const RGB drv2_rgb_strip = SET_RGB(130, 255, 230);
+
+const uint8_t drv2_strip_start = 67;
 
 bool DIGITAL_RAIN_V2(effect_params_t* params) {
     // algorithm ported from https://github.com/tremby/Kaleidoscope-LEDEffect-DigitalRain
-    const uint8_t drop_ticks           = 28;
-    const uint8_t pure_green_intensity = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
+    const uint8_t drop_ticks           = scale8(255 - rgb_matrix_config.speed, 128);
+    const uint8_t pure_blue_intensity = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
     const uint8_t max_brightness_boost = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
     const uint8_t max_intensity        = rgb_matrix_config.hsv.v;
-    const uint8_t decay_ticks          = 0xff / max_intensity;
+    const uint8_t decay_ticks          = 0xff / (max_intensity / 2);
 
     static uint8_t drop  = 0;
     static uint8_t decay = 0;
@@ -45,16 +47,25 @@ bool DIGITAL_RAIN_V2(effect_params_t* params) {
 
             // TODO: multiple leds are supported mapped to the same row/column
             if (led_count > 0) {
-                if (g_rgb_frame_buffer[row][col] > pure_green_intensity) {
-                    const uint8_t boost = (uint8_t)((uint16_t)max_brightness_boost * (g_rgb_frame_buffer[row][col] - pure_green_intensity) / (max_intensity - pure_green_intensity));
-                    rgb_matrix_set_color(led[0], boost, max_intensity, boost);
+                if (g_rgb_frame_buffer[row][col] > pure_blue_intensity) {
+                    const uint8_t boost = (uint8_t)((uint16_t)max_brightness_boost * (g_rgb_frame_buffer[row][col] - pure_blue_intensity) / (max_intensity - pure_blue_intensity));
+                    rgb_matrix_set_color(led[0], scale8(boost, 128), boost, max_intensity);
                 } else {
-                    const uint8_t green = (uint8_t)((uint16_t)max_intensity * g_rgb_frame_buffer[row][col] / pure_green_intensity);
-                    rgb_matrix_set_color(led[0], 0, green, 0);
+                    const uint8_t blue = (uint8_t)((uint16_t)max_intensity * g_rgb_frame_buffer[row][col] / pure_blue_intensity);
+                    rgb_matrix_set_color(led[0], 0, scale8(blue, 32), blue);
                 }
             }
         }
     }
+
+    // light strip
+    RGB_MATRIX_USE_LIMITS(led_min, led_max);
+    for (uint8_t i = led_min; i < led_max; i++) {
+        RGB_MATRIX_TEST_LED_FLAGS();
+        const uint8_t blue = (uint8_t)((uint16_t)max_intensity);
+        if (i > drv2_strip_start) /* rgb_matrix_set_color(i, drv2_rgb_strip.r, drv2_rgb_strip.g, drv2_rgb_strip.b); */rgb_matrix_set_color(i, 0, scale8(blue, 32), blue);
+    }
+
     if (decay == decay_ticks) {
         decay = 0;
     }
@@ -78,7 +89,8 @@ bool DIGITAL_RAIN_V2(effect_params_t* params) {
             }
         }
     }
-    return false;
+
+    return rgb_matrix_check_finished_leds(led_max);
 }
 
 #   endif // RGB_MATRIX_CUSTOM_EFFECT_IMPLS

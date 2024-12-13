@@ -2,13 +2,15 @@
 RGB_MATRIX_EFFECT(ELECTRIC_FLOW)
 #   ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
-#define EFFECT_INTERVAL 500
+#define EF_EFFECT_INTERVAL 500
 
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
 const RGB ef_rgb_off = SET_RGB(0, 0, 0);
 const RGB ef_rgb_keys = SET_RGB(100, 235, 255);
-// const RGB ef_rgb_strip = SET_RGB(130, 255, 230);
+const RGB ef_rgb_strip = SET_RGB(130, 255, 230);
+
+const uint8_t ef_strip_start = 67;
 
 static bool ELECTRIC_FLOW(effect_params_t* params) {
     // LED state array
@@ -20,22 +22,35 @@ static bool ELECTRIC_FLOW(effect_params_t* params) {
     }
 
     inline uint32_t interval(void) {
-        return EFFECT_INTERVAL / scale16by8(qadd8(rgb_matrix_config.speed, 16), 16);
+        return EF_EFFECT_INTERVAL / scale16by8(qadd8(rgb_matrix_config.speed, 16), 16);
     }
 
     if (params->init) {
-        // clear LEDs and fill the state array
+        // clear LEDs
         rgb_matrix_set_color_all(0, 0, 0);
-        for (uint8_t j = 0; j < RGB_MATRIX_LED_COUNT; ++j) {
-            led_states[j] = (random8() & 2) ? ef_rgb_off : ef_rgb_keys;
+
+        // fill LED state array
+        for (uint8_t i = 0; i < RGB_MATRIX_LED_COUNT; i++) {
+            led_states[i] = (random8() & 2) ? ef_rgb_off : ((i < ef_strip_start) ? ef_rgb_keys : ef_rgb_strip);
         }
     }
 
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     // light LEDs based on state array
-    for (uint8_t i = led_min; i < led_max; ++i) {
+    for (uint8_t i = led_min; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
-        rgb_matrix_set_color(i, led_states[i].r, led_states[i].g, led_states[i].b);
+
+        RGB rgb = led_states[i];
+
+        // match with config hsv.v
+        bool led_on = rgb.r != 0 && rgb.g != 0 && rgb.b != 0;
+        if (led_on && rgb_matrix_config.hsv.v < 255) {
+            HSV hsv = rgb_to_hsv(rgb);
+            hsv.v = rgb_matrix_config.hsv.v;
+            rgb = hsv_to_rgb(hsv);
+        }
+
+        rgb_matrix_set_color(i, rgb.r, rgb.g, rgb.b);
     }
 
     if (!rgb_matrix_check_finished_leds(led_max)) {
@@ -43,8 +58,8 @@ static bool ELECTRIC_FLOW(effect_params_t* params) {
         RGB tmp = SET_RGB(led_states[0].r, led_states[0].g, led_states[0].b);
 
         // shift LED states forward
-        for (uint8_t j = 0; j < led_max - 1; ++j) {
-            led_states[j] = led_states[j + 1];
+        for (uint8_t i = 0; i < led_max - 1; i++) {
+            led_states[i] = led_states[i + 1];
         }
 
         // fill last LED
