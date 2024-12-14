@@ -34,7 +34,8 @@
  * 3 = cubic scaling
  * 4 = quartic scaling
  */
-#define RGB_MATRIX_KEYPRESS_SCALING 3
+#define CUSTOM_RGB_MATRIX_KEYPRESS_SCALING 3
+#define CUSTOM_RGB_MATRIX_TIMEOUT 300000 // 300 seconds (5 minutes)
 
 // disable all effects enabled by Massdrop maintainers
 #undef ENABLE_RGB_MATRIX_ALPHAS_MODS

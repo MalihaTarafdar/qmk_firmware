@@ -5,6 +5,8 @@
 #define LCG(kc) (QK_LCTL | QK_LGUI | (kc))
 
 uint8_t rgb_debug_led = 0;
+uint32_t rgb_timer;
+bool rgb_disabled;
 
 enum alt_keycodes {
     U_T_AUTO = SAFE_RANGE,    // USB Extra Port Toggle Auto Detect / Always Active
@@ -503,6 +505,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     )
 };
 
+void rgb_timeout_init(void) {
+    rgb_disabled = false;
+    rgb_timer = timer_read32();
+}
+
 void spam_init(void) {
     spam_active = false;
     spam_config_active = false;
@@ -520,6 +527,7 @@ void init_user(void) {
     layout_index = CYCLE_LAYOUT_START;
 
     spam_init();
+    rgb_timeout_init();
 }
 
 void keyboard_post_init_user() {
@@ -560,6 +568,11 @@ bool keycode_is_spamable(uint16_t keycode) {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     static uint32_t key_timer;
+
+    if (record->event.pressed) {
+        if (rgb_disabled) rgb_matrix_enable_noeeprom();
+        rgb_timeout_init();
+    }
 
     // activate spam
     if (spam_config_active && keycode_is_spamable(keycode)) {
@@ -785,6 +798,12 @@ void matrix_scan_user() {
         if (timer_elapsed32(spam_timer) > SPAM_DELAY) {
             tap_code(spam_keycode);
             spam_timer = timer_read32();
+        }
+    }
+    if (!rgb_disabled) {
+        if (timer_elapsed32(rgb_timer) > CUSTOM_RGB_MATRIX_TIMEOUT) {
+            rgb_matrix_disable_noeeprom();
+            rgb_disabled = true;
         }
     }
 }

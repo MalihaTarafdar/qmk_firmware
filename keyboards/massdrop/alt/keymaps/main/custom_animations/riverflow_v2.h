@@ -40,11 +40,11 @@ static bool rv2_effect_runner_reactive(effect_params_t* params, rv2_reactive_f e
 
 static RGB RIVERFLOW_V2_math(RGB rgb, uint16_t offset, uint8_t i) {
         uint16_t scaled_offset = offset;
-#if RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+#if CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
     scaled_offset = (offset * offset) / 255;
-#elif RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+#elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
     scaled_offset = (offset * offset * offset) / (255 * 255);
-#elif RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+#elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
     scaled_offset = (offset * offset * offset * offset) / (255 * 255 * 255);
 #endif
 
