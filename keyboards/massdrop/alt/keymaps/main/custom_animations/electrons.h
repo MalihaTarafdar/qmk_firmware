@@ -15,9 +15,8 @@ static const RGB E_RGB_STRIP = SET_RGB(130, 255, 230);
 static const uint8_t E_STRIP_START = 67;
 
 // TODO: modify g_rgb_frame_buffer to include LED strip
+// or store start_pos and length in NO_LED positions in g_rgb_frame_buffer
 static const uint8_t MATRIX_COLS_LEDS_ONLY[6] = {15, 15, 14, 14, 9, 38};
-// REMOVE
-// static const uint8_t MATRIX_COLS_NO_LEDS_ONLY[6] = {0, 0, 1, 1, 6, 0};
 
 static bool e_init = false;
 
@@ -51,41 +50,57 @@ static bool ELECTRONS(effect_params_t* params) {
         for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
             uint8_t length = random8_min_max(MATRIX_COLS_LEDS_ONLY[r] / 2, MATRIX_COLS_LEDS_ONLY[r] / 4 * 3);
             uint8_t start_pos = random8_max(MATRIX_COLS_LEDS_ONLY[r]);
-            uint8_t no_leds_count = 0;
 
+            // get accurate start_pos (skipping over NO_LEDs)
+            uint8_t acc_start_pos = 0;
             for (uint8_t c = 0; c < MATRIX_COLS; c++) {
                 uint8_t led[LED_HITS_TO_REMEMBER];
                 uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
 
-                // include NO_LEDs, but add to length
-                if (led_count == 0) {
-                    no_leds_count++;
+                if (led_count == 0) continue;
+
+                start_pos--;
+                if (start_pos == 0) {
+                    acc_start_pos = c;
+                    break;
                 }
-
-                uint8_t remaining_length = 0;
-
-                if (c >= start_pos && c < (start_pos + length)) { // no wrap
-                    remaining_length = length - (c - start_pos);
-                    if (no_leds_count > 0) {
-                        remaining_length += no_leds_count;
-                        no_leds_count = 0;
-                    }
-                } else {
-#ifdef ENABLE_RGB_MATRIX_ELECTRONS_WRAP
-                    if (start_pos + length >= MATRIX_COLS_LEDS_ONLY[r]) { // wrap
-                        if (c < (start_pos + length - MATRIX_COLS_LEDS_ONLY[r])) {
-                            remaining_length = length - ((MATRIX_COLS_LEDS_ONLY[r] + c) - start_pos);
-                            if (no_leds_count > 0) {
-                                remaining_length += no_leds_count;
-                                no_leds_count = 0;
-                            }
-                        }
-                    }
-#endif
-                }
-
-                g_rgb_frame_buffer[r][c] = remaining_length;
             }
+
+            // fill g_rgb_frame_buffer
+            for (uint8_t p = acc_start_pos; p < acc_start_pos + length; p++) {
+#ifndef ENABLE_RGB_MATRIX_ELECTRONS_WRAP
+                if (p >= MATRIX_COLS) {
+                    break;
+                }
+#endif // ENABLE_RGB_MATRIX_ELECTRONS_WRAP
+
+                uint8_t c = (p < MATRIX_COLS) ? p : p - MATRIX_COLS;
+
+                // skip over NO_LEDs
+                uint8_t led[LED_HITS_TO_REMEMBER];
+                uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
+                if (led_count == 0) {
+                    length++;
+                    continue;
+                }
+
+                g_rgb_frame_buffer[r][c] = length - (p - acc_start_pos);
+            }
+
+            // find all NO_LEDs and set g_rgb_frame_buffer to 255
+            for (uint8_t c = 0; c < MATRIX_COLS; c++) {
+                uint8_t led[LED_HITS_TO_REMEMBER];
+                uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
+                if (led_count == 0) g_rgb_frame_buffer[r][c] = 255;
+            }
+        }
+
+        // DEBUG
+        for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
+            for (uint8_t c = 0; c < MATRIX_COLS; c++) {
+                dprintf("%u ", g_rgb_frame_buffer[r][c]);
+            }
+            dprint("\n");
         }
 
         e_init = true;
@@ -97,13 +112,6 @@ static bool ELECTRONS(effect_params_t* params) {
         for (uint8_t c = 0; c < MATRIX_COLS; c++) {
             uint8_t led[LED_HITS_TO_REMEMBER];
             uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
-
-            // REMOVE debug
-            // dprintf("r: %u, c: %u\n\tframe buffer: ", r, c);
-            // for (uint8_t tmp = 0; tmp < LED_HITS_TO_REMEMBER; tmp++) {
-            //     dprintf("%u ", led[tmp]);
-            // }
-            // dprint("\n");
 
             if (led_count > 0) {
                 if (g_rgb_frame_buffer[r][c] > 0) {
@@ -118,6 +126,7 @@ static bool ELECTRONS(effect_params_t* params) {
     if (!rgb_matrix_check_finished_leds(led_max)) {
         // TODO: moves lines
         // TODO: reverse direction when speed == 0
+        // TODO: skip NO_LEDs
 
         // set pulse timer
         wait_timer = g_rgb_timer + interval();
