@@ -5,11 +5,7 @@ RGB_MATRIX_EFFECT(DIGITAL_RAIN_V2)
 // lower the number for denser effect/wider keyboard
 #define RGB_DIGITAL_RAIN_DROPS 20
 
-#define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
-
-// const RGB drv2_rgb_strip = SET_RGB(130, 255, 230);
-
-const uint8_t drv2_strip_start = 67;
+static const uint8_t drv2_strip_start = 67;
 
 bool DIGITAL_RAIN_V2(effect_params_t* params) {
     // algorithm ported from https://github.com/tremby/Kaleidoscope-LEDEffect-DigitalRain
@@ -17,7 +13,7 @@ bool DIGITAL_RAIN_V2(effect_params_t* params) {
     const uint8_t pure_blue_intensity = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
     const uint8_t max_brightness_boost = (((uint16_t)rgb_matrix_config.hsv.v) * 3) >> 2;
     const uint8_t max_intensity        = rgb_matrix_config.hsv.v;
-    const uint8_t decay_ticks          = 0xff / (max_intensity / 2);
+    const uint8_t decay_ticks          = 0xff / scale8(max_intensity, 64);
 
     static uint8_t drop  = 0;
     static uint8_t decay = 0;
@@ -63,7 +59,7 @@ bool DIGITAL_RAIN_V2(effect_params_t* params) {
     for (uint8_t i = led_min; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
         const uint8_t blue = (uint8_t)((uint16_t)max_intensity);
-        if (i > drv2_strip_start) /* rgb_matrix_set_color(i, drv2_rgb_strip.r, drv2_rgb_strip.g, drv2_rgb_strip.b); */rgb_matrix_set_color(i, 0, scale8(blue, 32), blue);
+        if (i > drv2_strip_start) rgb_matrix_set_color(i, scale8(blue, 8), scale8(blue, 64), blue);
     }
 
     if (decay == decay_ticks) {

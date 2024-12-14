@@ -6,11 +6,11 @@ RGB_MATRIX_EFFECT(ELECTRIC_FLOW)
 
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
-const RGB ef_rgb_off = SET_RGB(0, 0, 0);
-const RGB ef_rgb_keys = SET_RGB(100, 235, 255);
-const RGB ef_rgb_strip = SET_RGB(130, 255, 230);
+static const RGB ef_rgb_off = SET_RGB(0, 0, 0);
+static const RGB ef_rgb_keys = SET_RGB(80, 190, 255);
+static const RGB ef_rgb_strip = SET_RGB(130, 255, 230);
 
-const uint8_t ef_strip_start = 67;
+static const uint8_t ef_strip_start = 67;
 
 static bool ELECTRIC_FLOW(effect_params_t* params) {
     // LED state array
