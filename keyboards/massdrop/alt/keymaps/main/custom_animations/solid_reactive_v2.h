@@ -9,12 +9,12 @@ RGB_MATRIX_EFFECT(SOLID_REACTIVE_V2)
 
 typedef RGB (*custom_reactive_f)(RGB rgb, uint16_t offset);
 
-static const RGB srv2_rgb_keys = SET_RGB(80, 190, 255);
-static const RGB srv2_rgb_strip = SET_RGB(130, 255, 230);
-static const RGB srv2_rgb6 = SET_RGB(70, 235, 255);
-static const RGB srv2_rgb_press = SET_RGB(0, 50, 255);
+static const RGB SRV2_RGB_KEYS = SET_RGB(80, 190, 255);
+static const RGB SRV2_RGB_STRIP = SET_RGB(130, 255, 230);
+static const RGB SRV2_RGB6 = SET_RGB(50, 190, 255);
+static const RGB SRV2_RGB_PRESS = SET_RGB(0, 40, 255);
 
-static const uint8_t srv2_strip_start = 67;
+static const uint8_t SRV2_STRIP_START = 67;
 
 static bool custom_effect_runner_reactive(effect_params_t* params, custom_reactive_f effect_func, RGB base_colors[]) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
@@ -39,10 +39,10 @@ static bool custom_effect_runner_reactive(effect_params_t* params, custom_reacti
 }
 
 static RGB SOLID_REACTIVE_V2_math(RGB rgb, uint16_t offset) {
-    // key press = srv2_rgb_press
+    // key press = SRV2_RGB_PRESS
     // inverse offset & scale
-    uint8_t r = qsub8(rgb.r, scale8(255 - offset, srv2_rgb_keys.r - srv2_rgb_press.r));
-    uint8_t g = qsub8(rgb.g, scale8(255 - offset, srv2_rgb_keys.g - srv2_rgb_press.g));
+    uint8_t r = qsub8(rgb.r, scale8(255 - offset, SRV2_RGB_KEYS.r - SRV2_RGB_PRESS.r));
+    uint8_t g = qsub8(rgb.g, scale8(255 - offset, SRV2_RGB_KEYS.g - SRV2_RGB_PRESS.g));
     uint8_t b = rgb.b;
 
     RGB rgb_f = SET_RGB(r, g, b);
@@ -58,12 +58,12 @@ static RGB SOLID_REACTIVE_V2_math(RGB rgb, uint16_t offset) {
 }
 
 /*
- * LED MAP
+ * LED MAP (105 LEDs total)
  * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14
  * 15  16  17  18  19  20  21  22  23  24  25  26  27  28  29
  * 30  31  32  33  34  35  36  37  38  39  40  41      42  43
  * 44  45  46  47  48  49  50  51  52  53  54  55      56  57
- * 58  59  60          61          62  63          64  65  66
+ * 58  59  60              61              62  63  64  65  66
  * 67-104 in LED strip
  */
 
@@ -73,11 +73,11 @@ bool SOLID_REACTIVE_V2(effect_params_t* params) {
 
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     for (uint8_t i = led_min; i < led_max; i++) {
-        base_colors[i] = (i < srv2_strip_start) ? srv2_rgb_keys : srv2_rgb_strip;
+        base_colors[i] = (i < SRV2_STRIP_START) ? SRV2_RGB_KEYS : SRV2_RGB_STRIP;
     }
 
     // fix for key 6
-    base_colors[6] = srv2_rgb6;
+    base_colors[6] = SRV2_RGB6;
 
     // TODO: fix other keys
 
