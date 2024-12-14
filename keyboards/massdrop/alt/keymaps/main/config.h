@@ -28,6 +28,14 @@
 #define RGB_MATRIX_KEYPRESSES
 #define RGB_MATRIX_FRAMEBUFFER_EFFECTS
 
+/* RGB Matrix Keypress Scaling
+ * 1 = no scaling (linear)
+ * 2 = quadratic scaling
+ * 3 = cubic scaling
+ * 4 = quartic scaling
+ */
+#define RGB_MATRIX_KEYPRESS_SCALING 3
+
 // disable all effects enabled by Massdrop maintainers
 #undef ENABLE_RGB_MATRIX_ALPHAS_MODS
 #undef ENABLE_RGB_MATRIX_GRADIENT_UP_DOWN
@@ -103,3 +111,5 @@
 #define ENABLE_RGB_MATRIX_ELECTRONS_NO_WRAP
 #define ENABLE_RGB_MATRIX_ELECTRIC_FLOW
 #define ENABLE_RGB_MATRIX_DIGITAL_RAIN_V2
+
+#define RGB_MATRIX_STARTUP_MODE RGB_MATRIX_CUSTOM_SOLID_REACTIVE_V2

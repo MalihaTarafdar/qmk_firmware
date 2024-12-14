@@ -520,8 +520,6 @@ void init_user(void) {
     layout_index = CYCLE_LAYOUT_START;
 
     spam_init();
-
-    rgb_matrix_mode(RGB_MATRIX_CUSTOM_SOLID_REACTIVE_V2);
 }
 
 void keyboard_post_init_user() {

@@ -39,10 +39,18 @@ static bool srv2_effect_runner_reactive(effect_params_t* params, srv2_reactive_f
 }
 
 static RGB SOLID_REACTIVE_V2_math(RGB rgb, uint16_t offset) {
-    // key press = SRV2_RGB_PRESS
+    uint16_t scaled_offset = offset;
+#if RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+    scaled_offset = (offset * offset) / 255;
+#elif RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+    scaled_offset = (offset * offset * offset) / (255 * 255);
+#elif RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+    scaled_offset = (offset * offset * offset * offset) / (255 * 255 * 255);
+#endif
+
     // inverse offset & scale
-    uint8_t r = qsub8(rgb.r, scale8(255 - offset, SRV2_RGB_KEYS.r - SRV2_RGB_PRESS.r));
-    uint8_t g = qsub8(rgb.g, scale8(255 - offset, SRV2_RGB_KEYS.g - SRV2_RGB_PRESS.g));
+    uint8_t r = qsub8(rgb.r, scale8(255 - scaled_offset, SRV2_RGB_KEYS.r - SRV2_RGB_PRESS.r));
+    uint8_t g = qsub8(rgb.g, scale8(255 - scaled_offset, SRV2_RGB_KEYS.g - SRV2_RGB_PRESS.g));
     uint8_t b = rgb.b;
 
     RGB rgb_f = SET_RGB(r, g, b);

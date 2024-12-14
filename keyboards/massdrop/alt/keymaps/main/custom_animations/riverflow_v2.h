@@ -39,16 +39,29 @@ static bool rv2_effect_runner_reactive(effect_params_t* params, rv2_reactive_f e
 }
 
 static RGB RIVERFLOW_V2_math(RGB rgb, uint16_t offset, uint8_t i) {
-    // key press = RV2_RGB_PRESS
+        uint16_t scaled_offset = offset;
+#if RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+    scaled_offset = (offset * offset) / 255;
+#elif RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+    scaled_offset = (offset * offset * offset) / (255 * 255);
+#elif RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+    scaled_offset = (offset * offset * offset * offset) / (255 * 255 * 255);
+#endif
+
     // inverse offset & scale
-    uint8_t r = qsub8(rgb.r, scale8(255 - offset, RV2_RGB_KEYS.r - RV2_RGB_PRESS.r));
-    uint8_t g = qsub8(rgb.g, scale8(255 - offset, RV2_RGB_KEYS.g - RV2_RGB_PRESS.g));
+    uint8_t r = qsub8(rgb.r, scale8(255 - scaled_offset, RV2_RGB_KEYS.r - RV2_RGB_PRESS.r));
+    uint8_t g = qsub8(rgb.g, scale8(255 - scaled_offset, RV2_RGB_KEYS.g - RV2_RGB_PRESS.g));
     uint8_t b = rgb.b;
 
     RGB rgb_f = SET_RGB(r, g, b);
     HSV hsv_f = rgb_to_hsv(rgb_f);
-    uint16_t time = scale16by8(g_rgb_timer + (i * 315), rgb_matrix_config.speed / 8);
-    hsv_f.v = scale8(abs8(sin8(time) - 128) * 2, hsv_f.v);
+
+    if (i < RV2_STRIP_START) {
+        uint16_t time = scale16by8(g_rgb_timer + (i * 315), rgb_matrix_config.speed);
+        hsv_f.v = scale8(abs8(sin8(time) - 128) * 2, hsv_f.v);
+    }
+
+    if (rgb_matrix_config.hsv.v < 255) hsv_f.v = scale8(hsv_f.v, rgb_matrix_config.hsv.v);
     rgb_f = hsv_to_rgb(hsv_f);
 
     return rgb_f;

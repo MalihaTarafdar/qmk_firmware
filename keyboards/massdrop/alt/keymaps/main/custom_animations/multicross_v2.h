@@ -47,8 +47,17 @@ static RGB MULTICROSS_V2_math(RGB rgb, int16_t dx, int16_t dy, uint8_t dist, uin
 
     if (effect > 255) effect = 255;
 
-    uint8_t r = qsub8(rgb.r, scale8(255 - effect, MV2_RGB_KEYS.r - MV2_RGB_PRESS.r));
-    uint8_t g = qsub8(rgb.g, scale8(255 - effect, MV2_RGB_KEYS.g - MV2_RGB_PRESS.g));
+    uint16_t scaled_effect = effect;
+#if RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+    scaled_effect = (effect * effect) / 255;
+#elif RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+    scaled_effect = (effect * effect * effect) / (255 * 255);
+#elif RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+    scaled_effect = (effect * effect * effect * effect) / (255 * 255 * 255);
+#endif
+
+    uint8_t r = qsub8(rgb.r, scale8(255 - scaled_effect, MV2_RGB_KEYS.r - MV2_RGB_PRESS.r));
+    uint8_t g = qsub8(rgb.g, scale8(255 - scaled_effect, MV2_RGB_KEYS.g - MV2_RGB_PRESS.g));
     uint8_t b = rgb.b;
 
     RGB rgb_f = SET_RGB(r, g, b);
