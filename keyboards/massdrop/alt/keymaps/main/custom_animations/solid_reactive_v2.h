@@ -5,6 +5,8 @@ RGB_MATRIX_EFFECT(SOLID_REACTIVE_V2)
 
 #        ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
+#define SRV2_STRIP_START 67
+
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
 typedef RGB (*custom_reactive_f)(RGB rgb, uint16_t offset);
@@ -13,8 +15,6 @@ static const RGB SRV2_RGB_KEYS = SET_RGB(80, 190, 255);
 static const RGB SRV2_RGB_STRIP = SET_RGB(130, 255, 230);
 static const RGB SRV2_RGB6 = SET_RGB(50, 190, 255);
 static const RGB SRV2_RGB_PRESS = SET_RGB(0, 40, 255);
-
-static const uint8_t SRV2_STRIP_START = 67;
 
 static bool custom_effect_runner_reactive(effect_params_t* params, custom_reactive_f effect_func, RGB base_colors[]) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);

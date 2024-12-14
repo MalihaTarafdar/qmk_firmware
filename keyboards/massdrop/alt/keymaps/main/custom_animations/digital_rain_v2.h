@@ -45,6 +45,7 @@ bool DIGITAL_RAIN_V2(effect_params_t* params) {
 
             // TODO: multiple leds are supported mapped to the same row/column
             if (led_count > 0) {
+                if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
                 if (g_rgb_frame_buffer[row][col] > pure_blue_intensity) {
                     const uint8_t boost = (uint8_t)((uint16_t)max_brightness_boost * (g_rgb_frame_buffer[row][col] - pure_blue_intensity) / (max_intensity - pure_blue_intensity));
                     rgb_matrix_set_color(led[0], scale8(boost, 128), boost, max_intensity);

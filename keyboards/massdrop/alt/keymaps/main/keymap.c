@@ -521,7 +521,7 @@ void init_user(void) {
 
     spam_init();
 
-    rgb_matrix_mode_noeeprom(RGB_MATRIX_CUSTOM_SOLID_REACTIVE_V2);
+    rgb_matrix_mode(RGB_MATRIX_CUSTOM_SOLID_REACTIVE_V2);
 }
 
 void keyboard_post_init_user() {

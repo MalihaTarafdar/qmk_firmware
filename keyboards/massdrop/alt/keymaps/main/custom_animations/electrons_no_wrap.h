@@ -1,25 +1,27 @@
+// NOTE: no wrap = after a line has finished, randomize its length and start again from the starting edge
 // TODO: reverse direction when speed == 0
 #ifdef RGB_MATRIX_FRAMEBUFFER_EFFECTS
-#   ifdef ENABLE_RGB_MATRIX_ELECTRONS
-RGB_MATRIX_EFFECT(ELECTRONS)
+#   ifdef ENABLE_RGB_MATRIX_ELECTRONS_NO_WRAP
+RGB_MATRIX_EFFECT(ELECTRONS_NO_WRAP)
 #       ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
 #define E_EFFECT_INTERVAL 500
-#define E_STRIP_START 67
 
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
-static const RGB E_RGB_OFF = SET_RGB(0, 0, 0);
-static const RGB E_RGB_KEYS = SET_RGB(80, 190, 255);
-static const RGB E_RGB_STRIP = SET_RGB(130, 255, 230);
+static const RGB ENW_RGB_OFF = SET_RGB(0, 0, 0);
+static const RGB ENW_RGB_KEYS = SET_RGB(80, 190, 255);
+static const RGB ENW_RGB_STRIP = SET_RGB(130, 255, 230);
 
-static uint8_t e_strip_start_pos = 0;
-static uint8_t e_strip_length = 0;
+static const uint8_t ENW_STRIP_START = 67;
 
-static const uint8_t E_MATRIX_COLS_LEDS_ONLY[6] = {15, 15, 14, 14, 9, 38};
-static const uint8_t E_SR = 6;
+static uint8_t enw_strip_start_pos = 0;
+static uint8_t enw_strip_length = 0;
 
-static bool e_init = false;
+static const uint8_t ENW_MATRIX_COLS_LEDS_ONLY[6] = {15, 15, 14, 14, 9, 38};
+static const uint8_t ENW_SR = 6;
+
+static bool enw_init = false;
 
 /*
  * LED MAP (105 LEDs total)
@@ -31,24 +33,24 @@ static bool e_init = false;
  * 67-104 in LED strip
  */
 
-static uint32_t e_interval(void) {
+static uint32_t enw_interval(void) {
     return E_EFFECT_INTERVAL / scale16by8(qadd8(rgb_matrix_config.speed, 16), 64);
 }
 
-static int e_rand_start_pos(uint8_t r) {
-    return random8_max(E_MATRIX_COLS_LEDS_ONLY[r]);
+static int enw_rand_start_pos(uint8_t r) {
+    return random8_max(ENW_MATRIX_COLS_LEDS_ONLY[r]);
 }
 
-static int e_rand_length(uint8_t r) {
-    return random8_min_max(scale8(E_MATRIX_COLS_LEDS_ONLY[r], 128), (uint8_t)(E_MATRIX_COLS_LEDS_ONLY[r] / 5 * 4));
+static int enw_rand_length(uint8_t r) {
+    return random8_min_max(scale8(ENW_MATRIX_COLS_LEDS_ONLY[r], 128), (uint8_t)(ENW_MATRIX_COLS_LEDS_ONLY[r] / 5 * 4));
 }
 
-static void ELECTRONS_init(void) {
+static void ELECTRONS_NO_WRAP_init(void) {
     // generate random traveling lines in frame buffer
     // frame buffer stores the remaining length of the traveling line
     for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
-        uint8_t start_pos = e_rand_start_pos(r);
-        uint8_t length = e_rand_length(r);
+        uint8_t start_pos = enw_rand_start_pos(r);
+        uint8_t length = enw_rand_length(r);
 
         // get accurate start_pos (skipping over NO_LEDs)
         uint8_t acc_start_pos = 0;
@@ -67,6 +69,8 @@ static void ELECTRONS_init(void) {
 
         // fill g_rgb_frame_buffer
         for (uint8_t p = acc_start_pos; p < acc_start_pos + length; p++) {
+            if (p >= MATRIX_COLS) break;
+
             uint8_t c = (p < MATRIX_COLS) ? p : p - MATRIX_COLS;
 
             // skip over NO_LEDs
@@ -89,26 +93,26 @@ static void ELECTRONS_init(void) {
     }
 
     // generate random traveling line for LED strip
-    e_strip_start_pos = e_rand_start_pos(E_SR - 1);
-    e_strip_length = e_rand_length(E_SR - 1);
+    enw_strip_start_pos = enw_rand_start_pos(ENW_SR - 1);
+    enw_strip_length = enw_rand_length(ENW_SR - 1);
 
     // DEBUG
-    dprintf("e_strip_start_pos: %u\n", e_strip_start_pos);
-    dprintf("e_strip_length: %u\n", e_strip_length);
+    dprintf("enw_strip_start_pos: %u\n", enw_strip_start_pos);
+    dprintf("enw_strip_length: %u\n", enw_strip_length);
 }
 
-static bool ELECTRONS(effect_params_t* params) {
+static bool ELECTRONS_NO_WRAP(effect_params_t* params) {
     static uint32_t wait_timer = 0;
     if (wait_timer > g_rgb_timer) {
         return false;
     }
 
-    if (!e_init && params->init) {
+    if (!enw_init && params->init) {
         // clear LEDs & frame buffer
         rgb_matrix_set_color_all(0, 0, 0);
         memset(g_rgb_frame_buffer, 0, sizeof(g_rgb_frame_buffer));
 
-        ELECTRONS_init();
+        ELECTRONS_NO_WRAP_init();
 
         // DEBUG
         for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
@@ -118,7 +122,7 @@ static bool ELECTRONS(effect_params_t* params) {
             dprint("\n");
         }
 
-        e_init = true;
+        enw_init = true;
     }
 
     // light lines
@@ -130,7 +134,7 @@ static bool ELECTRONS(effect_params_t* params) {
             if (led_count > 0) {
                 if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
                 if (g_rgb_frame_buffer[r][c] > 0) {
-                    RGB rgb = E_RGB_KEYS;
+                    RGB rgb = ENW_RGB_KEYS;
                     // match with config hsv.v
                     if (rgb_matrix_config.hsv.v < 255) {
                         HSV hsv = rgb_to_hsv(rgb);
@@ -139,7 +143,7 @@ static bool ELECTRONS(effect_params_t* params) {
                     }
                     rgb_matrix_set_color(led[0], rgb.r, rgb.g, rgb.b);
                 } else {
-                    rgb_matrix_set_color(led[0], E_RGB_OFF.r, E_RGB_OFF.g, E_RGB_OFF.b);
+                    rgb_matrix_set_color(led[0], ENW_RGB_OFF.r, ENW_RGB_OFF.g, ENW_RGB_OFF.b);
                 }
             }
         }
@@ -147,16 +151,16 @@ static bool ELECTRONS(effect_params_t* params) {
 
     // light LED strip line
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
-    for (uint8_t i = E_STRIP_START; i < led_max; i++) {
+    for (uint8_t i = ENW_STRIP_START; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
 
-        uint8_t x = i - E_STRIP_START;
-        bool in_line = (x >= e_strip_start_pos && x < (e_strip_start_pos + e_strip_length)) ||
-                (((e_strip_start_pos + e_strip_length) >= E_MATRIX_COLS_LEDS_ONLY[E_SR - 1]) &&
-                        (x < (e_strip_start_pos + e_strip_length - E_MATRIX_COLS_LEDS_ONLY[E_SR - 1])));
+        uint8_t x = i - ENW_STRIP_START;
+        bool in_line = (x >= enw_strip_start_pos && x < (enw_strip_start_pos + enw_strip_length)) ||
+                (((enw_strip_start_pos + enw_strip_length) >= ENW_MATRIX_COLS_LEDS_ONLY[ENW_SR - 1]) &&
+                        (x < (enw_strip_start_pos + enw_strip_length - ENW_MATRIX_COLS_LEDS_ONLY[ENW_SR - 1])));
 
         if (in_line) {
-            RGB rgb = E_RGB_STRIP;
+            RGB rgb = ENW_RGB_STRIP;
             // match with config hsv.v
             if (rgb_matrix_config.hsv.v < 255) {
                 HSV hsv = rgb_to_hsv(rgb);
@@ -165,21 +169,14 @@ static bool ELECTRONS(effect_params_t* params) {
             }
             rgb_matrix_set_color(i, rgb.r, rgb.g, rgb.b);
         } else {
-            rgb_matrix_set_color(i, E_RGB_OFF.r, E_RGB_OFF.g, E_RGB_OFF.b);
+            rgb_matrix_set_color(i, ENW_RGB_OFF.r, ENW_RGB_OFF.g, ENW_RGB_OFF.b);
         }
     }
 
     if (!rgb_matrix_check_finished_leds(led_max)) {
         // moves lines forward
         for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
-            // save first LED value
-            uint8_t first_buf = 0;
-            for (uint8_t c = 0; c < MATRIX_COLS; c++) {
-                if (g_rgb_frame_buffer[r][c] != 255) {
-                    first_buf = g_rgb_frame_buffer[r][c];
-                    break;
-                }
-            }
+            bool has_line = false;
 
             // move lines no wrap
             for (uint8_t c = 0; c < MATRIX_COLS; c++) {
@@ -191,6 +188,7 @@ static bool ELECTRONS(effect_params_t* params) {
                     }
                 } else if (g_rgb_frame_buffer[r][c] != 255 && g_rgb_frame_buffer[r][c] > 0) {
                     g_rgb_frame_buffer[r][c]--;
+                    has_line = true;
                 }
             }
 
@@ -200,23 +198,26 @@ static bool ELECTRONS(effect_params_t* params) {
                 if (g_rgb_frame_buffer[r][c] != 255) last = c;
             }
 
-            // wrap
-            if (first_buf > 0) {
-                g_rgb_frame_buffer[r][last] = first_buf;
+            // start new line
+            if (!has_line) {
+                g_rgb_frame_buffer[r][last] = enw_rand_length(r);
             }
         }
 
         // move LED strip line forward
-        e_strip_start_pos++;
-        if (e_strip_start_pos == (led_max - E_STRIP_START)) e_strip_start_pos = 0;
+        enw_strip_start_pos++;
+        if (enw_strip_start_pos == (led_max - ENW_STRIP_START)) {
+            enw_strip_start_pos = 0;
+            enw_strip_length = enw_rand_length(ENW_SR - 1);
+        }
 
         // set pulse timer
-        wait_timer = g_rgb_timer + e_interval();
+        wait_timer = g_rgb_timer + enw_interval();
     }
 
     return rgb_matrix_check_finished_leds(led_max);
 }
 
 #      endif // RGB_MATRIX_CUSTOM_EFFECT_IMPLS
-#   endif // ENABLE_RGB_MATRIX_ELECTRONS
+#   endif // ENABLE_RGB_MATRIX_ELECTRONS_NO_WRAP
 #endif // #ifdef RGB_MATRIX_FRAMEBUFFER_EFFECTS

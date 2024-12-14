@@ -2,3 +2,4 @@
 #include "custom_animations/electrons.h"
 #include "custom_animations/electric_flow.h"
 #include "custom_animations/digital_rain_v2.h"
+#include "custom_animations/electrons_no_wrap.h"

@@ -3,6 +3,7 @@ RGB_MATRIX_EFFECT(ELECTRIC_FLOW)
 #   ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
 #define EF_EFFECT_INTERVAL 500
+#define EF_STRIP_START 67
 
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
@@ -10,12 +11,10 @@ static const RGB EF_RGB_OFF = SET_RGB(0, 0, 0);
 static const RGB EF_RGB_KEYS = SET_RGB(80, 190, 255);
 static const RGB EF_RGB_STRIP = SET_RGB(130, 255, 230);
 
-static const uint8_t EF_STRIP_START = 67;
-
 static bool ELECTRIC_FLOW(effect_params_t* params) {
     // TODO: use g_rgb_frame_buffer instead
     // LED state array
-    static RGB led_states[RGB_MATRIX_LED_COUNT];
+    static bool led[RGB_MATRIX_LED_COUNT];
 
     static uint32_t wait_timer = 0;
     if (wait_timer > g_rgb_timer) {
@@ -32,7 +31,7 @@ static bool ELECTRIC_FLOW(effect_params_t* params) {
 
         // fill LED state array
         for (uint8_t i = 0; i < RGB_MATRIX_LED_COUNT; i++) {
-            led_states[i] = (random8() & 1) ? EF_RGB_OFF : ((i < EF_STRIP_START) ? EF_RGB_KEYS : EF_RGB_STRIP);
+            led[i] = (random8() & 1);
         }
     }
 
@@ -41,7 +40,7 @@ static bool ELECTRIC_FLOW(effect_params_t* params) {
     for (uint8_t i = led_min; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
 
-        RGB rgb = led_states[i];
+        RGB rgb = (led[i]) ? ((i < EF_STRIP_START) ? EF_RGB_KEYS : EF_RGB_STRIP) : EF_RGB_OFF;
 
         // match with config hsv.v
         bool led_on = rgb.r != 0 && rgb.g != 0 && rgb.b != 0;
@@ -56,16 +55,15 @@ static bool ELECTRIC_FLOW(effect_params_t* params) {
 
     if (!rgb_matrix_check_finished_leds(led_max)) {
         // save first LED to wrap
-        RGB tmp = SET_RGB(led_states[0].r, led_states[0].g, led_states[0].b);
+        bool tmp = led[0];
 
         // shift LED states forward
-        // FIX: key-specific colors also shift
         for (uint8_t i = 0; i < led_max - 1; i++) {
-            led_states[i] = led_states[i + 1];
+            led[i] = led[i + 1];
         }
 
         // fill last LED
-        led_states[led_max - 1] = tmp;
+        led[led_max - 1] = tmp;
 
         // set pulse timer
         wait_timer = g_rgb_timer + interval();
