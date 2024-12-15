@@ -38,7 +38,7 @@ static int enw_rand_start_pos(uint8_t r) {
 }
 
 static int enw_rand_length(uint8_t r) {
-    return random8_min_max(scale8(ENW_MATRIX_COLS_LEDS_ONLY[r], 128), (uint8_t)(ENW_MATRIX_COLS_LEDS_ONLY[r] / 5 * 4));
+    return random8_min_max(scale8(ENW_MATRIX_COLS_LEDS_ONLY[r], 128), ENW_MATRIX_COLS_LEDS_ONLY[r] - 1);
 }
 
 static void ELECTRONS_NO_WRAP_init(void) {

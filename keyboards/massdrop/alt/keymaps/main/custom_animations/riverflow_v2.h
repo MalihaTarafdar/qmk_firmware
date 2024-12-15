@@ -55,6 +55,7 @@ static RGB RIVERFLOW_V2_math(RGB rgb, uint16_t offset, uint8_t i) {
     if (i < STRIP_START) {
         uint16_t time = scale16by8(g_rgb_timer + (i * 315), rgb_matrix_config.speed);
         hsv_f.v = scale8(abs8(sin8(time) - 128) * 2, hsv_f.v);
+        // hsv_f.v = (hsv_f.v * hsv_f.v) / 255; // quadratic scaling
     }
 
     if (rgb_matrix_config.hsv.v < 255) hsv_f.v = scale8(hsv_f.v, rgb_matrix_config.hsv.v);
