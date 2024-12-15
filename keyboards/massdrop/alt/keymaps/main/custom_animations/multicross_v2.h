@@ -32,29 +32,33 @@ bool mv2_effect_runner_reactive_splash(uint8_t start, effect_params_t* params, m
 }
 
 static RGB MULTICROSS_V2_math(RGB rgb, int16_t dx, int16_t dy, uint8_t dist, uint16_t tick) {
-    if (abs(dx) > 32 || abs(dy) > 32) return rgb;
-
-    uint16_t effect = tick + dist;
-    dx              = dx < 0 ? dx * -1 : dx;
-    dy              = dy < 0 ? dy * -1 : dy;
-    dx              = dx * 16 > 255 ? 255 : dx * 16;
-    dy              = dy * 16 > 255 ? 255 : dy * 16;
-    effect += dx > dy ? dy : dx;
-
-    if (effect > 255) effect = 255;
-
-    uint16_t scaled_effect = effect;
-#if CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
-    scaled_effect = (effect * effect) / 255;
-#elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
-    scaled_effect = (effect * effect * effect) / (255 * 255);
-#elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
-    scaled_effect = (effect * effect * effect * effect) / (255 * 255 * 255);
-#endif
-
-    uint8_t r = qsub8(rgb.r, scale8(255 - scaled_effect, MV2_RGB_KEYS.r - MV2_RGB_PRESS.r));
-    uint8_t g = qsub8(rgb.g, scale8(255 - scaled_effect, MV2_RGB_KEYS.g - MV2_RGB_PRESS.g));
+    uint8_t r = rgb.r;
+    uint8_t g = rgb.g;
     uint8_t b = rgb.b;
+
+    if (abs(dx) <= 32 && abs(dy) <= 32) {
+        uint16_t effect = tick + dist;
+        dx              = dx < 0 ? dx * -1 : dx;
+        dy              = dy < 0 ? dy * -1 : dy;
+        dx              = dx * 16 > 255 ? 255 : dx * 16;
+        dy              = dy * 16 > 255 ? 255 : dy * 16;
+        effect += dx > dy ? dy : dx;
+
+        if (effect > 255) effect = 255;
+
+        uint16_t scaled_effect = effect;
+    #if CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+        scaled_effect = (effect * effect) / 255;
+    #elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+        scaled_effect = (effect * effect * effect) / (255 * 255);
+    #elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+        scaled_effect = (effect * effect * effect * effect) / (255 * 255 * 255);
+    #endif
+
+        r = qsub8(rgb.r, scale8(255 - scaled_effect, MV2_RGB_KEYS.r - MV2_RGB_PRESS.r));
+        g = qsub8(rgb.g, scale8(255 - scaled_effect, MV2_RGB_KEYS.g - MV2_RGB_PRESS.g));
+        b = rgb.b;
+    }
 
     RGB rgb_f = SET_RGB(r, g, b);
 

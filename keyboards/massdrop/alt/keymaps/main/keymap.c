@@ -1,6 +1,12 @@
 #include QMK_KEYBOARD_H
+#include "lib/lib8tion/lib8tion.h"
+#include "lib/lib8tion/math8.h"
+#include "lib/lib8tion/random8.h"
+#include "lib/lib8tion/scale8.h"
+#include "lib/lib8tion/trig8.h"
 
 // NOTE: must toggle function layer instead of momentary activation to start recording dynamic macros
+// NOTE: key overrides must be enabled for MS_CLK action
 
 #define LCG(kc) (QK_LCTL | QK_LGUI | (kc))
 
@@ -20,16 +26,17 @@ enum alt_keycodes {
     CYC_LT,                   // cycle keyboard layout
     DM_SPAM,                  // spam key custom dynamic macro
     MS_CLK,                   // mouse keys momentary layer + click on release
-    DBG_TST                   // programmable debug test key
+    DBG_TST,                  // programmable debug test key
+    LC_CYC,                   // cycle layer color indicator mods
 };
 
 enum layer_names {
     _MAIN,    // main layer (QWERTY layout)
     _DVK,     // Dvorak layout
-    _CMK,     // Colemak layout layer
+    _CMK,     // Colemak layout
     _FN,      // function layer
-    _MS,      // mouse keys layer
-    _RGB      // RGB layer
+    _MS,      // mouse keys
+    _RGB,     // RGB
 };
 
 uint8_t mod_state;
@@ -68,6 +75,17 @@ bool spam_config_active;
 bool spam_active;
 uint16_t spam_keycode;
 uint32_t spam_timer;
+
+enum layer_color_modes {
+    LC_NONE,
+    LC_RGB,
+    LC_MONOCHROMATIC
+};
+
+const uint8_t CYCLE_LC_MODE_START = 0;
+const uint8_t CYCLE_LC_MODE_END = 2;
+uint8_t lc_mode_index;
+const RGB RGB_MONOCHROMATIC = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
 
 /* Custom Shortcuts
  * [NO] trigger -> replacement : description
@@ -442,23 +460,10 @@ typedef union {
   struct {
     uint8_t mode_index :2;
     uint8_t layout_index :2;
+    uint8_t lc_mode_index :2;
   };
 } user_config_t;
 user_config_t user_config;
-
-// reperesent layer state (uint16_t) as a binary string for debug
-char *layer_state_to_binary_string(layer_state_t state) {
-    int num_bits = sizeof(layer_state_t) * 8;
-    char *ret = malloc(num_bits);
-
-    for (int i = num_bits - 1; i >= 0; i--) {
-        ret[i] = (state & 1) + '0';
-        state >>= 1;
-    }
-
-    ret[num_bits] = '\0';
-    return ret;
-}
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_MAIN] = LAYOUT_65_ansi_blocker(
@@ -484,8 +489,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [_FN] = LAYOUT_65_ansi_blocker(
         KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_INS,
-        _______, KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,  KC_F19,  _______, _______, _______, KC_BRID, KC_BRIU, KC_PSCR, KC_END,
-        _______, _______, DM_SPAM, DB_TOGG, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, KO_TOGG, CYC_LT,  KC_SCRL, KC_PAUS,          _______, CYC_MD,
+        _______, LC_CYC,  DM_SPAM, DB_TOGG, DM_REC1, DM_REC2, DM_PLY1, DM_PLY2, KO_TOGG, CYC_LT,  KC_SCRL, KC_PAUS,          _______, CYC_MD,
         _______, EE_CLR, U_T_AUTO,U_T_AGCR, _______, MD_BOOT, NK_TOGG, TG(_MS), KC_MUTE, KC_VOLD, KC_VOLU, _______,          TT(_RGB),MS_CLK,
         _______, _______, _______,                            DBG_TST,                            _______, _______, KC_MPRV, KC_MPLY, KC_MNXT
     ),
@@ -504,6 +508,21 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______,                            XXXXXXX,                            _______, _______, XXXXXXX, XXXXXXX, XXXXXXX
     )
 };
+
+
+// reperesent layer state (uint16_t) as a binary string for debug
+char *layer_state_to_binary_string(layer_state_t state) {
+    int num_bits = sizeof(layer_state_t) * 8;
+    char *ret = malloc(num_bits);
+
+    for (int i = num_bits - 1; i >= 0; i--) {
+        ret[i] = (state & 1) + '0';
+        state >>= 1;
+    }
+
+    ret[num_bits] = '\0';
+    return ret;
+}
 
 void rgb_timeout_init(void) {
     rgb_disabled = false;
@@ -526,6 +545,8 @@ void init_user(void) {
     // QWERTY keyboard layout enabled by default
     layout_index = CYCLE_LAYOUT_START;
 
+    lc_mode_index = LC_MONOCHROMATIC;
+
     spam_init();
     rgb_timeout_init();
 }
@@ -542,6 +563,8 @@ void keyboard_post_init_user() {
         mode_is_windows = (mode_index == M_WINDOWS);
 
         layout_index = user_config.layout_index;
+
+        lc_mode_index = user_config.lc_mode_index;
     }
 }
 
@@ -589,6 +612,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     mod_state = get_mods();
 
     switch (keycode) {
+        case LC_CYC:
+            if (record->event.pressed) {
+                lc_mode_index++;
+                if (lc_mode_index > CYCLE_LC_MODE_END) {
+                    lc_mode_index = CYCLE_LC_MODE_START;
+                }
+                // write lc_mode_index to EEPROM
+                user_config.lc_mode_index = lc_mode_index;
+                eeconfig_update_user(user_config.raw);
+                dprintf("lc_mode_index [EEPROM]: %u\n", user_config.lc_mode_index);
+            }
+            return false;
         case DBG_TST:
             if (record->event.pressed) {
                 rgb_debug_led++;
@@ -621,7 +656,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     layout_index = CYCLE_LAYOUT_START;
                 }
 
-                // default_layer_set(1 << layout_index);
                 set_single_persistent_default_layer(layout_index);
                 dprintf("layer turned on: %u\n", layout_index);
 
@@ -787,87 +821,238 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     }
 }
 
+RGB get_monochromatic_rgb(uint8_t level) {
+    // levels are 1-NUM_LEVELS, 0=none
+    const uint8_t NUM_LEVELS = 2;
+    HSV hsv = rgb_to_hsv(RGB_MONOCHROMATIC);
+
+    hsv.v = (level > 0) ? (256 / NUM_LEVELS) * (NUM_LEVELS - (level - 1)) - 1 : 0;
+
+    return hsv_to_rgb(hsv);
+}
+
+RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
+    switch (layer) {
+        case _FN:
+            if ((kc >= KC_F1 && kc <= KC_F12) || (kc >= KC_F13 && kc <= KC_F19) || kc == KC_DEL ||
+                    kc == KC_INS || kc == KC_PSCR || kc == KC_END || kc == KC_SCRL || kc == KC_PAUS) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(1);
+                }
+            } else if (kc == KC_BRID || kc == KC_BRIU || kc == KC_MUTE || kc == KC_VOLD ||
+                    kc == KC_VOLU || kc == KC_MPRV || kc == KC_MPLY || kc == KC_MNXT) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(1);
+                }
+            } else if (kc == DM_SPAM || kc == DM_REC1 || kc == DM_REC2 || kc == DM_PLY1 ||
+                    kc == DM_PLY2) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(2);
+                }
+            } else if (kc == EE_CLR || kc == U_T_AUTO || kc == U_T_AGCR || kc == MD_BOOT) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(2);
+                }
+            } else if (kc == TT(_RGB) || kc == TG(_MS) || kc == MS_CLK || index == 63) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(2);
+                }
+            } else if (kc == CYC_LT || kc == CYC_MD || kc == DBG_TST || kc == LC_CYC || kc == PLY_SNK) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(2);
+                }
+            } else if (kc == DB_TOGG || kc == NK_TOGG || kc == KO_TOGG) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(2);
+                }
+            } else {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+                    return get_monochromatic_rgb(0);
+                }
+            }
+            break;
+        case _MS:
+            if (kc == MS_UP || kc == MS_DOWN || kc == MS_LEFT || kc == MS_RGHT || kc == MS_WHLU ||
+                    kc == MS_WHLD || kc == MS_WHLL || kc == MS_WHLR) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == MS_BTN1 || kc == MS_BTN2 || kc == MS_BTN3 || kc == MS_BTN4 || kc == MS_BTN5) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == MS_ACL0 || kc == MS_ACL1 || kc == MS_ACL2) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == KC_SPC || kc == KC_LEFT || kc == KC_RGHT || kc == KC_UP || kc == KC_DOWN) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == TG(_MS) || index == 51) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            }
+            break;
+        case _RGB:
+            if (kc == TG(_RGB) || index == 63 || index == 56 || kc == RGB_TOG) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == RGB_SPD || kc == RGB_SPI) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == RGB_RMOD || kc == RGB_MOD) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RGB_CUSTOM_YELLOW_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == RGB_VAI || kc == RGB_VAD) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == RGB_HUI || kc == RGB_HUD) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else if (kc == RGB_SAI || kc == RGB_SAD) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            } else {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC) {
+
+                }
+            }
+            break;
+    }
+
+    RGB rgb = SET_RGB(0, 0, 0);
+    return rgb;
+}
+
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     uint8_t layer = get_highest_layer(layer_state);
     switch (layer) {
         case _FN:
+            if (lc_mode_index == LC_NONE) return true;
             for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
                 for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
                     uint8_t index = g_led_config.matrix_co[row][col];
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
-                        if ((kc >= KC_F1 && kc <= KC_F12) || (kc >= KC_F13 && kc <= KC_F19) || kc == KC_DEL ||
-                                kc == KC_INS || kc == KC_PSCR || kc == KC_END || kc == KC_SCRL || kc == KC_PAUS) {
-                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
-                        } else if (kc == KC_BRID || kc == KC_BRIU || kc == KC_MUTE || kc == KC_VOLD ||
-                                kc == KC_VOLU || kc == KC_MPRV || kc == KC_MPLY || kc == KC_MNXT) {
-                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
-                        } else if (kc == EE_CLR || kc == U_T_AUTO || kc == U_T_AGCR || kc == MD_BOOT) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
-                        } else if (kc == DM_SPAM || kc == DM_REC1 || kc == DM_REC2 || kc == DM_PLY1 ||
-                                kc == DM_PLY2) {
-                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
-                        } else if (kc == TT(_RGB) || kc == TG(_MS) || kc == MS_CLK || index == 63) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
-                        } else if (kc == DB_TOGG || kc == NK_TOGG || kc == KO_TOGG || kc == DBG_TST) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
-                        } else if (kc == CYC_LT || kc == CYC_MD) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
-                        } else {
-                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
-                        }
+                        RGB rgb = get_layer_indicator_rgb(layer, index, kc);
+                        HSV hsv = rgb_to_hsv(rgb);
+                        hsv.v = (lc_mode_index == LC_RGB) ? rgb_matrix_config.hsv.v : scale8(hsv.v, rgb_matrix_config.hsv.v);
+                        RGB rgb_f = hsv_to_rgb(hsv);
+                        rgb_matrix_set_color(index, rgb_f.r, rgb_f.g, rgb_f.b);
                     }
                 }
             }
             break;
         case _MS:
+            if (lc_mode_index == LC_NONE) return true;
             for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
                 for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
                     uint8_t index = g_led_config.matrix_co[row][col];
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
-                        if (kc == MS_UP || kc == MS_DOWN || kc == MS_LEFT || kc == MS_RGHT || kc == MS_WHLU ||
-                                kc == MS_WHLD || kc == MS_WHLL || kc == MS_WHLR) {
-                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
-                        } else if (kc == MS_BTN1 || kc == MS_BTN2 || kc == MS_BTN3 || kc == MS_BTN4 || kc == MS_BTN5) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
-                        } else if (kc == MS_ACL0 || kc == MS_ACL1 || kc == MS_ACL2) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
-                        } else if (kc == KC_SPC || kc == KC_LEFT || kc == KC_RGHT || kc == KC_UP || kc == KC_DOWN) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
-                        } else if (kc == TG(_MS) || index == 51) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
-                        } else {
-                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
-                        }
+                        RGB rgb = get_layer_indicator_rgb(layer, index, kc);
+                        HSV hsv = rgb_to_hsv(rgb);
+                        hsv.v = rgb_matrix_config.hsv.v;
+                        rgb = hsv_to_rgb(hsv);
+                        rgb_matrix_set_color(index, rgb.r, rgb.g, rgb.b);
                     }
                 }
             }
             break;
         case _RGB:
+            if (lc_mode_index == LC_NONE) return true;
             for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
                 for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
                     uint8_t index = g_led_config.matrix_co[row][col];
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
-                        if (kc == TG(_RGB) || index == 63 || index == 56 || kc == RGB_TOG) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
-                        } else if (kc == RGB_SPD || kc == RGB_SPI) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
-                        } else if (kc == RGB_RMOD || kc == RGB_MOD) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RGB_CUSTOM_YELLOW_B);
-                        } else if (kc == RGB_VAI || kc == RGB_VAD) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
-                        } else if (kc == RGB_HUI || kc == RGB_HUD) {
-                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
-                        } else if (kc == RGB_SAI || kc == RGB_SAD) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
-                        } else {
-                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
-                        }
+                        RGB rgb = get_layer_indicator_rgb(layer, index, kc);
+                        HSV hsv = rgb_to_hsv(rgb);
+                        hsv.v = rgb_matrix_config.hsv.v;
+                        rgb = hsv_to_rgb(hsv);
+                        rgb_matrix_set_color(index, rgb.r, rgb.g, rgb.b);
+                    }
+                }
+            }
+            break;
                     }
                 }
             }
