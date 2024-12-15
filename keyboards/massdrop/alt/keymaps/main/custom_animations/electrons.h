@@ -5,13 +5,10 @@ RGB_MATRIX_EFFECT(ELECTRONS)
 #       ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
 #define E_EFFECT_INTERVAL 500
-#define E_STRIP_START 67
-
-#define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
 static const RGB E_RGB_OFF = SET_RGB(0, 0, 0);
-static const RGB E_RGB_KEYS = SET_RGB(80, 190, 255);
-static const RGB E_RGB_STRIP = SET_RGB(130, 255, 230);
+static const RGB E_RGB_KEYS = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+static const RGB E_RGB_STRIP = SET_RGB(RGB_STRIP_R, RGB_STRIP_G, RGB_STRIP_B);
 
 static uint8_t e_strip_start_pos = 0;
 static uint8_t e_strip_length = 0;
@@ -147,10 +144,10 @@ static bool ELECTRONS(effect_params_t* params) {
 
     // light LED strip line
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
-    for (uint8_t i = E_STRIP_START; i < led_max; i++) {
+    for (uint8_t i = STRIP_START; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
 
-        uint8_t x = i - E_STRIP_START;
+        uint8_t x = i - STRIP_START;
         bool in_line = (x >= e_strip_start_pos && x < (e_strip_start_pos + e_strip_length)) ||
                 (((e_strip_start_pos + e_strip_length) >= E_MATRIX_COLS_LEDS_ONLY[E_SR - 1]) &&
                         (x < (e_strip_start_pos + e_strip_length - E_MATRIX_COLS_LEDS_ONLY[E_SR - 1])));
@@ -208,7 +205,7 @@ static bool ELECTRONS(effect_params_t* params) {
 
         // move LED strip line forward
         e_strip_start_pos++;
-        if (e_strip_start_pos == (led_max - E_STRIP_START)) e_strip_start_pos = 0;
+        if (e_strip_start_pos == (led_max - STRIP_START)) e_strip_start_pos = 0;
 
         // set pulse timer
         wait_timer = g_rgb_timer + e_interval();

@@ -5,16 +5,12 @@ RGB_MATRIX_EFFECT(MULTICROSS_V2)
 
 #        ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
-#define MV2_STRIP_START 67
-
-#define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
-
 typedef RGB (*mv2_reactive_splash_f)(RGB hsv, int16_t dx, int16_t dy, uint8_t dist, uint16_t tick);
 
-static const RGB MV2_RGB_KEYS = SET_RGB(80, 190, 255);
-static const RGB MV2_RGB_STRIP = SET_RGB(130, 255, 230);
-static const RGB MV2_RGB6 = SET_RGB(50, 190, 255);
-static const RGB MV2_RGB_PRESS = SET_RGB(0, 40, 255);
+static const RGB MV2_RGB_KEYS = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+static const RGB MV2_RGB_STRIP = SET_RGB(RGB_STRIP_R, RGB_STRIP_G, RGB_STRIP_B);
+static const RGB MV2_RGB6 = SET_RGB(RGB_KEY6_R, RGB_KEY6_G, RGB_KEY6_B);
+static const RGB MV2_RGB_PRESS = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
 
 bool mv2_effect_runner_reactive_splash(uint8_t start, effect_params_t* params, mv2_reactive_splash_f effect_func, RGB base_colors[]) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
@@ -88,7 +84,7 @@ bool MULTICROSS_V2(effect_params_t* params) {
 
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     for (uint8_t i = led_min; i < led_max; i++) {
-        base_colors[i] = (i < MV2_STRIP_START) ? MV2_RGB_KEYS : MV2_RGB_STRIP;
+        base_colors[i] = (i < STRIP_START) ? MV2_RGB_KEYS : MV2_RGB_STRIP;
     }
 
     // fix for key 6

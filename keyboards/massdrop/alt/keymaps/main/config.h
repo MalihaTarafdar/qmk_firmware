@@ -114,3 +114,22 @@
 #define ENABLE_RGB_MATRIX_DIGITAL_RAIN_V2
 
 #define RGB_MATRIX_STARTUP_MODE RGB_MATRIX_CUSTOM_SOLID_REACTIVE_V2
+
+#define STRIP_START 67
+#define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
+
+#define RGB_KEYS_R 80
+#define RGB_KEYS_G 190
+#define RGB_KEYS_B 255
+
+#define RGB_STRIP_R 130
+#define RGB_STRIP_G 255
+#define RGB_STRIP_B 230
+
+#define RGB_PRESS_R 0
+#define RGB_PRESS_G 40
+#define RGB_PRESS_B 255
+
+#define RGB_KEY6_R 50
+#define RGB_KEY6_G 190
+#define RGB_KEY6_B 255

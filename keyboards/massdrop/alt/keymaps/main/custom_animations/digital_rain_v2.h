@@ -6,8 +6,6 @@ RGB_MATRIX_EFFECT(DIGITAL_RAIN_V2)
 // lower the number for denser effect/wider keyboard
 #define RGB_DIGITAL_RAIN_DROPS 20
 
-static const uint8_t DRV2_STRIP_START = 67;
-
 // TODO: caps lock change color
 bool DIGITAL_RAIN_V2(effect_params_t* params) {
     // algorithm ported from https://github.com/tremby/Kaleidoscope-LEDEffect-DigitalRain
@@ -62,7 +60,7 @@ bool DIGITAL_RAIN_V2(effect_params_t* params) {
     for (uint8_t i = led_min; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
         const uint8_t blue = (uint8_t)((uint16_t)max_intensity);
-        if (i > DRV2_STRIP_START) rgb_matrix_set_color(i, scale8(blue, 8), scale8(blue, 64), blue);
+        if (i > STRIP_START) rgb_matrix_set_color(i, scale8(blue, 8), scale8(blue, 64), blue);
     }
 
     if (decay == decay_ticks) {

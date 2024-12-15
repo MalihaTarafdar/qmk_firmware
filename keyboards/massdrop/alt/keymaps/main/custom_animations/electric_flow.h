@@ -3,13 +3,10 @@ RGB_MATRIX_EFFECT(ELECTRIC_FLOW)
 #   ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
 #define EF_EFFECT_INTERVAL 500
-#define EF_STRIP_START 67
-
-#define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
 static const RGB EF_RGB_OFF = SET_RGB(0, 0, 0);
-static const RGB EF_RGB_KEYS = SET_RGB(80, 190, 255);
-static const RGB EF_RGB_STRIP = SET_RGB(130, 255, 230);
+static const RGB EF_RGB_KEYS = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+static const RGB EF_RGB_STRIP = SET_RGB(RGB_STRIP_R, RGB_STRIP_G, RGB_STRIP_B);
 
 static bool ELECTRIC_FLOW(effect_params_t* params) {
     // TODO: use g_rgb_frame_buffer instead
@@ -40,7 +37,7 @@ static bool ELECTRIC_FLOW(effect_params_t* params) {
     for (uint8_t i = led_min; i < led_max; i++) {
         RGB_MATRIX_TEST_LED_FLAGS();
 
-        RGB rgb = (led[i]) ? ((i < EF_STRIP_START) ? EF_RGB_KEYS : EF_RGB_STRIP) : EF_RGB_OFF;
+        RGB rgb = (led[i]) ? ((i < STRIP_START) ? EF_RGB_KEYS : EF_RGB_STRIP) : EF_RGB_OFF;
 
         // match with config hsv.v
         bool led_on = rgb.r != 0 && rgb.g != 0 && rgb.b != 0;

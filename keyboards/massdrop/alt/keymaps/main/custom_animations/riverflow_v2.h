@@ -5,16 +5,12 @@ RGB_MATRIX_EFFECT(RIVERFLOW_V2)
 
 #        ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
-#define RV2_STRIP_START 67
-
-#define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
-
 typedef RGB (*rv2_reactive_f)(RGB rgb, uint16_t offset, uint8_t i);
 
-static const RGB RV2_RGB_KEYS = SET_RGB(80, 190, 255);
-static const RGB RV2_RGB_STRIP = SET_RGB(130, 255, 230);
-static const RGB RV2_RGB6 = SET_RGB(50, 190, 255);
-static const RGB RV2_RGB_PRESS = SET_RGB(0, 40, 255);
+static const RGB RV2_RGB_KEYS = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+static const RGB RV2_RGB_STRIP = SET_RGB(RGB_STRIP_R, RGB_STRIP_G, RGB_STRIP_B);
+static const RGB RV2_RGB6 = SET_RGB(RGB_KEY6_R, RGB_KEY6_G, RGB_KEY6_B);
+static const RGB RV2_RGB_PRESS = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
 
 static bool rv2_effect_runner_reactive(effect_params_t* params, rv2_reactive_f effect_func, RGB base_colors[]) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
@@ -56,7 +52,7 @@ static RGB RIVERFLOW_V2_math(RGB rgb, uint16_t offset, uint8_t i) {
     RGB rgb_f = SET_RGB(r, g, b);
     HSV hsv_f = rgb_to_hsv(rgb_f);
 
-    if (i < RV2_STRIP_START) {
+    if (i < STRIP_START) {
         uint16_t time = scale16by8(g_rgb_timer + (i * 315), rgb_matrix_config.speed);
         hsv_f.v = scale8(abs8(sin8(time) - 128) * 2, hsv_f.v);
     }
@@ -83,7 +79,7 @@ bool RIVERFLOW_V2(effect_params_t* params) {
 
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     for (uint8_t i = led_min; i < led_max; i++) {
-        base_colors[i] = (i < RV2_STRIP_START) ? RV2_RGB_KEYS : RV2_RGB_STRIP;
+        base_colors[i] = (i < STRIP_START) ? RV2_RGB_KEYS : RV2_RGB_STRIP;
     }
 
     // fix for key 6
