@@ -787,9 +787,94 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     }
 }
 
-bool rgb_matrix_indicators_user() {
-    // rgb_matrix_set_color(rgb_debug_led, 255, 0, 0);
+bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    uint8_t layer = get_highest_layer(layer_state);
+    switch (layer) {
+        case _FN:
+            for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
+                for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
+                    uint8_t index = g_led_config.matrix_co[row][col];
+                    uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
+                    if (index >= led_min && index < led_max && index != NO_LED) {
+                        if ((kc >= KC_F1 && kc <= KC_F12) || (kc >= KC_F13 && kc <= KC_F19) || kc == KC_DEL ||
+                                kc == KC_INS || kc == KC_PSCR || kc == KC_END || kc == KC_SCRL || kc == KC_PAUS) {
+                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                        } else if (kc == KC_BRID || kc == KC_BRIU || kc == KC_MUTE || kc == KC_VOLD ||
+                                kc == KC_VOLU || kc == KC_MPRV || kc == KC_MPLY || kc == KC_MNXT) {
+                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                        } else if (kc == EE_CLR || kc == U_T_AUTO || kc == U_T_AGCR || kc == MD_BOOT) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                        } else if (kc == DM_SPAM || kc == DM_REC1 || kc == DM_REC2 || kc == DM_PLY1 ||
+                                kc == DM_PLY2) {
+                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                        } else if (kc == TT(_RGB) || kc == TG(_MS) || kc == MS_CLK || index == 63) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                        } else if (kc == DB_TOGG || kc == NK_TOGG || kc == KO_TOGG || kc == DBG_TST) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                        } else if (kc == CYC_LT || kc == CYC_MD) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
+                        } else {
+                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                        }
+                    }
+                }
+            }
+            break;
+        case _MS:
+            for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
+                for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
+                    uint8_t index = g_led_config.matrix_co[row][col];
+                    uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
+
+                    if (index >= led_min && index < led_max && index != NO_LED) {
+                        if (kc == MS_UP || kc == MS_DOWN || kc == MS_LEFT || kc == MS_RGHT || kc == MS_WHLU ||
+                                kc == MS_WHLD || kc == MS_WHLL || kc == MS_WHLR) {
+                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                        } else if (kc == MS_BTN1 || kc == MS_BTN2 || kc == MS_BTN3 || kc == MS_BTN4 || kc == MS_BTN5) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                        } else if (kc == MS_ACL0 || kc == MS_ACL1 || kc == MS_ACL2) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                        } else if (kc == KC_SPC || kc == KC_LEFT || kc == KC_RGHT || kc == KC_UP || kc == KC_DOWN) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
+                        } else if (kc == TG(_MS) || index == 51) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                        } else {
+                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                        }
+                    }
+                }
+            }
+            break;
+        case _RGB:
+            for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
+                for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
+                    uint8_t index = g_led_config.matrix_co[row][col];
+                    uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
+
+                    if (index >= led_min && index < led_max && index != NO_LED) {
+                        if (kc == TG(_RGB) || index == 63 || index == 56 || kc == RGB_TOG) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                        } else if (kc == RGB_SPD || kc == RGB_SPI) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                        } else if (kc == RGB_RMOD || kc == RGB_MOD) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RGB_CUSTOM_YELLOW_B);
+                        } else if (kc == RGB_VAI || kc == RGB_VAD) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                        } else if (kc == RGB_HUI || kc == RGB_HUD) {
+                            rgb_matrix_set_color(index, RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                        } else if (kc == RGB_SAI || kc == RGB_SAD) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
+                        } else {
+                            rgb_matrix_set_color(index, RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
+                        }
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+    }
     return true;
 }
 
