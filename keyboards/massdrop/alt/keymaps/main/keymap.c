@@ -520,7 +520,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______,                            XXXXXXX,                            _______, _______, XXXXXXX, XXXXXXX, XXXXXXX
     ),
     [_SNK] = LAYOUT_65_ansi_blocker(
-        TG(_SNK),XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        KC_ESC, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          SNK_UP,  XXXXXXX,
@@ -530,31 +530,61 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 // ======================================================= SNAKE =======================================================
 
-// typedef struct Position {
-//     uint8_t r;
-//     uint8_t c;
-// } pos_t;
+#define MAX_SNAKE_LENGTH 255
 
-// enum direction {
-//     UP,
-//     DOWN,
-//     LEFT,
-//     RIGHT
-// };
+typedef struct Position {
+    uint8_t r;
+    uint8_t c;
+} pos_t;
 
-// const pos_t SNAKE_START_POS = {.r = 2, .c = 4};
-// const int SNAKE_START_DIR = RIGHT;
-// const uint8_t SNAKE_START_LEN = 2;
+enum direction {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT
+};
 
-// pos_t snake[];
-// int snake_dir;
-// uint8_t snake_len;
-// pos_t apple;
+const pos_t SNAKE_START_POS = {.r = 2, .c = 4};
+const int SNAKE_START_DIR = RIGHT;
+const uint8_t SNAKE_START_LEN = 2;
+
+pos_t snake[MAX_SNAKE_LENGTH];
+int snake_dir;
+uint8_t snake_len;
+pos_t apple;
 bool snake_initialized;
 
-void snake_init(void) {
+pos_t get_random_pos(void) {
+    uint8_t led[LED_HITS_TO_REMEMBER];
+    uint8_t row = random8_max(MATRIX_ROWS);
+    uint8_t col = random8_max(MATRIX_COLS);
+    uint8_t led_count = rgb_matrix_map_row_column_to_led(row, col, led);
 
+    while (led_count == 0) {
+        row = random8_max(MATRIX_ROWS);
+        col = random8_max(MATRIX_COLS);
+        led_count = rgb_matrix_map_row_column_to_led(row, col, led);
+    }
+
+    pos_t pos = {.r = row, .c = col};
+    return pos;
+}
+
+void snake_init(void) {
+    pos_t s0 = {.r = 2, .c = 5};
+    snake[0] = s0;
+
+    pos_t s1 = {.r = 2, .c = 4};
+    snake[1] = s1;
+
+    snake_dir = SNAKE_START_DIR;
+    snake_len = SNAKE_START_LEN;
+    apple = get_random_pos();
     snake_initialized = true;
+
+    dprintf("snake[0].r: %u, snake[0].c: %u\n", snake[0].r, snake[0].c);
+    dprintf("apple.r: %u, apple.c: %u\n", apple.r, apple.c);
+    dprintf("snake_dir: %u, snake_len: %u\n", snake_dir, snake_len);
 }
 
 // =====================================================================================================================
@@ -679,6 +709,22 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     mod_state = get_mods();
 
     switch (keycode) {
+        case KC_ESC:
+            // deactivate spam config & spam
+            if (record->event.pressed) {
+                if (spam_config_active || spam_active) {
+                    spam_init();
+                    dprintf("spam_config_active: %u\n", spam_config_active);
+                    return false;
+                }
+                if (snake_initialized) {
+                    snake_initialized = false;
+                    dprint("snake de-initialized\n");
+                    layer_off(_SNK);
+                    return false;
+                }
+            }
+            return true;
         case PLY_SNK:
             if (record->event.pressed) {
                 if (!snake_initialized) {
@@ -740,16 +786,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 dprintf("layout_index [EEPROM]: %u\n", user_config.layout_index);
             }
             return false;
-        case KC_ESC:
-            // deactivate spam config & spam
-            if (record->event.pressed) {
-                if (spam_config_active || spam_active) {
-                    spam_init();
-                    dprintf("spam_config_active: %u\n", spam_config_active);
-                    return false;
-                }
-            }
-            return true;
         case DM_SPAM:
             // activate spam config
             if (record->event.pressed) {
@@ -1157,9 +1193,26 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
                     uint8_t index = g_led_config.matrix_co[row][col];
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
-                        rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                        rgb_matrix_set_color(index, 0, 0, 0);
+
+                        // render snake
+                        for (uint8_t s = 0; s < snake_len; s++) {
+                            if (snake[s].r == row && snake[s].c == col) {
+                                rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
+                            }
+                        }
+
+                        // render apple
+                        if (apple.r == row && apple.c == col) {
+                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                        }
                     }
                 }
+            }
+
+            // LED strip
+            for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                rgb_matrix_set_color(i, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
             }
             break;
         default:
