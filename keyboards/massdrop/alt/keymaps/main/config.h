@@ -19,9 +19,11 @@
 
 #define BOOT_DELAY 250
 #define SPAM_DELAY 100
+#define BLINK_DELAY 200
 
 #undef RGB_MATRIX_LED_FLUSH_LIMIT
 #define RGB_MATRIX_LED_FLUSH_LIMIT 16
+#define CUSTOM_RGB_MATRIX_TIMEOUT 300000 // 300 seconds (5 minutes)
 
 #undef USE_CIE1931_CURVE
 
@@ -35,7 +37,6 @@
  * 4 = quartic scaling
  */
 #define CUSTOM_RGB_MATRIX_KEYPRESS_SCALING 3
-#define CUSTOM_RGB_MATRIX_TIMEOUT 300000 // 300 seconds (5 minutes)
 
 // disable all effects enabled by Massdrop maintainers
 #undef ENABLE_RGB_MATRIX_ALPHAS_MODS

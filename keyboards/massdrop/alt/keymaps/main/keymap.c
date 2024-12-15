@@ -95,6 +95,9 @@ uint8_t lc_mode_index;
 const RGB RGB_MONOCHROMATIC = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
 const RGB RGB_DICHROMATIC = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
 
+bool blink;
+uint32_t blink_timer;
+
 /* Custom Shortcuts
  * [NO] trigger -> replacement : description
  *
@@ -556,6 +559,11 @@ void snake_init(void) {
 
 // =====================================================================================================================
 
+void keyboard_blink(void) {
+    blink = true;
+    blink_timer = timer_read32();
+}
+
 // reperesent layer state (uint16_t) as a binary string for debug
 char *layer_state_to_binary_string(layer_state_t state) {
     int num_bits = sizeof(layer_state_t) * 8;
@@ -568,6 +576,11 @@ char *layer_state_to_binary_string(layer_state_t state) {
 
     ret[num_bits] = '\0';
     return ret;
+}
+
+void blink_init(void) {
+    blink_timer = 0;
+    blink = false;
 }
 
 void rgb_timeout_init(void) {
@@ -595,6 +608,7 @@ void init_user(void) {
 
     spam_init();
     rgb_timeout_init();
+    blink_init();
 
     snake_initialized = false;
 }
@@ -627,6 +641,11 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     dprintf("current state:\t%s (%u), highest layer: %u\n", state_binary_str, state, get_highest_layer(state));
     free(state_binary_str);
     return state;
+}
+
+bool dynamic_macro_record_start_user(int8_t direction) {
+    keyboard_blink();
+    return true;
 }
 
 bool keycode_is_spamable(uint16_t keycode) {
@@ -735,6 +754,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             // activate spam config
             if (record->event.pressed) {
                 spam_config_active = !spam_config_active;
+                keyboard_blink();
                 dprintf("spam_config_active: %u\n", spam_config_active);
             }
             return false;
@@ -1067,6 +1087,16 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
     return rgb;
 }
 
+bool rgb_matrix_indicators_user() {
+    if (blink) {
+        // blink LED strip only
+        for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+            rgb_matrix_set_color(i, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+        }
+    }
+    return true;
+}
+
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     uint8_t layer = get_highest_layer(layer_state);
     switch (layer) {
@@ -1150,5 +1180,9 @@ void matrix_scan_user() {
             rgb_matrix_disable_noeeprom();
             rgb_disabled = true;
         }
+    }
+    if (timer_elapsed32(blink_timer) > BLINK_DELAY) {
+        blink_timer = 0;
+        blink = false;
     }
 }
