@@ -414,9 +414,12 @@ const key_override_t shct21_override = {
         .enabled                                = &mode_is_windows
 };
 
+bool ms_override_active;
+
 bool ms_override_action(bool activated, void *context) {
     if (activated) {
         layer_on(_MS);
+        ms_override_active = true;
     } else {
         layer_off(_MS);
         if (get_mods() & MOD_BIT_LSHIFT) {
@@ -429,6 +432,7 @@ bool ms_override_action(bool activated, void *context) {
             unregister_mods(MOD_BIT_RSHIFT);
             tap_code16(MS_BTN2);
         }
+        ms_override_active = false;
     }
     return false;
 }
@@ -795,7 +799,10 @@ void init_user(void) {
     // QWERTY keyboard layout enabled by default
     layout_index = CYCLE_LAYOUT_START;
 
+    // monochromatic layer indicators enabled by default
     lc_mode_index = LC_MONOCHROMATIC;
+
+    ms_override_active = false;
 
     spam_init();
     rgb_timeout_init();
@@ -850,6 +857,11 @@ bool keycode_is_spamable(uint16_t keycode) {
             keycode != MD_BOOT && keycode != EE_CLR && keycode != U_T_AUTO && keycode != U_T_AGCR;
 }
 
+bool key_backlight_is_on(void) {
+    // HACK: checks if backlight is on using led at pos 1
+    return HAS_ANY_FLAGS(g_led_config.flags[1], rgb_matrix_config.flags);
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     static uint32_t key_timer;
 
@@ -899,6 +911,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return true;
         case PLY_SNK:
             if (record->event.pressed) {
+                if (!key_backlight_is_on()) return false;
                 if (snake_game_state == NOT_INIT) {
                     snake_init();
                 }
@@ -1307,6 +1320,13 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(1);
                 }
+            } else if (ms_override_active && (index == 44 || index == 55 || index == 57)) {
+                if (lc_mode_index == LC_RGB) {
+                    RGB rgb = SET_RGB(RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
+                    return get_mono_di_chromatic_rgb(1);
+                }
             } else {
                 if (lc_mode_index == LC_RGB) {
                     RGB rgb = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
@@ -1405,10 +1425,12 @@ bool rgb_matrix_indicators_user() {
         if (snake_game_state == INIT || snake_game_state == PLAY) {
             // LED strip
             for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
                 rgb_matrix_set_color(i, RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
             }
         } else if (snake_game_state == HIGH_SCORE_CONTINUE) {
             for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
                 HSV hsv = rgb_matrix_config.hsv;
                 uint8_t time = scale16by8(g_rgb_timer, qadd8(rgb_matrix_config.speed, 1));
                 hsv.h += abs8(g_led_config.point[i].y - k_rgb_matrix_center_dup.y) + (g_led_config.point[i].x - time);
@@ -1418,6 +1440,7 @@ bool rgb_matrix_indicators_user() {
         } else if (snake_game_state == LOSE) {
             // LED strip
             for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
                 rgb_matrix_set_color(i, RGB_SNAKE_RED_R, RGB_SNAKE_RED_G, RGB_SNAKE_RED_B);
             }
         }
@@ -1433,6 +1456,8 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
                 for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
                     uint8_t index = g_led_config.matrix_co[row][col];
+                    if (!HAS_ANY_FLAGS(g_led_config.flags[index], rgb_matrix_config.flags)) continue;
+
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
@@ -1450,6 +1475,8 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
                 for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
                     uint8_t index = g_led_config.matrix_co[row][col];
+                    if (!HAS_ANY_FLAGS(g_led_config.flags[index], rgb_matrix_config.flags)) continue;
+
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
@@ -1467,6 +1494,8 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
                 for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
                     uint8_t index = g_led_config.matrix_co[row][col];
+                    if (!HAS_ANY_FLAGS(g_led_config.flags[index], rgb_matrix_config.flags)) continue;
+
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
                     if (index >= led_min && index < led_max && index != NO_LED) {
