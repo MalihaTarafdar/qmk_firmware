@@ -542,16 +542,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 #define NO_DIR_BUFFER 5
 
-typedef struct Position {
-    uint8_t r;
-    uint8_t c;
-} pos_t;
-
-enum direction {
-    UP,
-    RIGHT,
-    DOWN,
-    LEFT,
+enum game_mode {
+    DEFAULT_MODE  = 0b00000001,
+    CHEAT_MODE    = 0b00000010,
+    WRAP_MODE     = 0b00000100
 };
 
 enum game_state {
@@ -561,6 +555,21 @@ enum game_state {
     HIGH_SCORE_CONTINUE,
     LOSE
 };
+
+typedef struct Position {
+    int8_t r;
+    int8_t c;
+} pos_t;
+
+enum direction {
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT,
+};
+
+uint8_t snake_game_mode;
+int snake_game_state;
 
 const pos_t SNAKE_START_POS = {.r = 2, .c = 4};
 const int SNAKE_START_DIR = RIGHT;
@@ -576,7 +585,6 @@ pos_t apple;
 
 uint8_t snake_high_score;
 uint8_t snake_score;
-int snake_game_state;
 
 uint32_t snake_timer;
 
@@ -592,7 +600,7 @@ bool collision(pos_t pos1, pos_t pos2) {
     return pos1.r == pos2.r && pos1.c == pos2.c;
 }
 
-bool is_in_bounds(uint8_t r, uint8_t c) {
+bool is_in_bounds(int8_t r, int8_t c) {
     return r >= 0 && c >= 0 && r < MATRIX_ROWS && c < MATRIX_COLS;
 }
 
@@ -622,29 +630,50 @@ pos_t get_random_pos_not_on_snake(void) {
     return pos;
 }
 
-pos_t get_valid_pos(uint8_t r, uint8_t c, int dir) {
-    if (is_in_bounds(r, c)) {
-        const uint8_t mid = MATRIX_COLS / 2;
+pos_t get_valid_pos(int8_t r, int8_t c, int dir) {
+    if (!(snake_game_mode & DEFAULT_MODE) || is_in_bounds(r, c)) {
+        const int8_t mid = MATRIX_COLS / 2; // FIX: requires the row has mid LED
         uint8_t led[LED_HITS_TO_REMEMBER];
         uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
+        dprintf("get_valid_pos checking (%u, %u)\n", r, c);
 
-        while (led_count == 0) {
+        while (!is_in_bounds(r, c) || led_count == 0) {
             switch (dir) {
                 case UP:
+                    if (snake_game_mode & WRAP_MODE && r < 0) {
+                        r = MATRIX_ROWS - 1;
+                        break;
+                    }
+                    if (c < mid) c++;
+                    if (c >= mid) c--;
+                    break;
                 case DOWN:
+                    if (snake_game_mode & WRAP_MODE && r >= MATRIX_ROWS) {
+                        r = 0;
+                        break;
+                    }
                     if (c < mid) c++;
                     if (c >= mid) c--;
                     break;
                 case RIGHT:
+                    if (snake_game_mode & WRAP_MODE && c >= MATRIX_COLS) {
+                        c = 0;
+                        break;
+                    }
                     c++;
                     break;
                 case LEFT:
+                    if (snake_game_mode == WRAP_MODE && c < 0) {
+                        c = MATRIX_COLS - 1;
+                        break;
+                    }
                     c--;
                     break;
                 default:
                     break;
             }
             led_count = rgb_matrix_map_row_column_to_led(r, c, led);
+            dprintf("get_valid_pos in loop checking (%u, %u)\n", r, c);
         }
     }
 
@@ -706,7 +735,6 @@ int8_t move_snake(void) {
     }
 
     // check out of bounds
-    // TODO: implement wrap mode
     if (!is_in_bounds(next_pos.r, next_pos.c)) {
         return -1;
     }
@@ -759,14 +787,28 @@ void keyboard_blink(RGB color) {
     blink_color = color;
 }
 
-// reperesent layer state (uint16_t) as a binary string for debug
-char *layer_state_to_binary_string(layer_state_t state) {
-    int num_bits = sizeof(layer_state_t) * 8;
+// reperesent uint16_t as a binary string for debug
+char *uint16_t_to_binary_string(uint16_t n) {
+    int num_bits = sizeof(uint16_t) * 8;
     char *ret = malloc(num_bits);
 
     for (int i = num_bits - 1; i >= 0; i--) {
-        ret[i] = (state & 1) + '0';
-        state >>= 1;
+        ret[i] = (n & 1) + '0';
+        n >>= 1;
+    }
+
+    ret[num_bits] = '\0';
+    return ret;
+}
+
+// reperesent uint8_t as a binary string for debug
+char *uint8_t_to_binary_string(uint8_t n) {
+    int num_bits = sizeof(uint8_t) * 8;
+    char *ret = malloc(num_bits);
+
+    for (int i = num_bits - 1; i >= 0; i--) {
+        ret[i] = (n & 1) + '0';
+        n >>= 1;
     }
 
     ret[num_bits] = '\0';
@@ -837,7 +879,7 @@ void eeconfig_init_user() {
 }
 
 layer_state_t layer_state_set_user(layer_state_t state) {
-    char *state_binary_str = layer_state_to_binary_string(state);
+    char *state_binary_str = uint16_t_to_binary_string(state);
     dprintf("current state:\t%s (%u), highest layer: %u\n", state_binary_str, state, get_highest_layer(state));
     free(state_binary_str);
     return state;
@@ -912,7 +954,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case PLY_SNK:
             if (record->event.pressed) {
                 if (!key_backlight_is_on()) return false;
+
                 if (snake_game_state == NOT_INIT) {
+                    snake_game_mode = 0;
+                    if (get_mods() & MOD_BIT_LSHIFT) {
+                        snake_game_mode |= CHEAT_MODE;
+                    }
+                    if (get_mods() & MOD_BIT_RSHIFT) {
+                        snake_game_mode |= WRAP_MODE;
+                    }
+                    if (!(get_mods() & MOD_BIT_LSHIFT) && !(get_mods() & MOD_BIT_RSHIFT)) {
+                        snake_game_mode = DEFAULT_MODE;
+                    }
+                    dprintf("snake_game_mode: %s\n", uint8_t_to_binary_string(snake_game_mode));
+
                     snake_init();
                 }
                 layer_on(_SNK);
@@ -922,29 +977,29 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (snake_dir != DOWN && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(UP);
                 snake_dir_buffer = UP;
+                if (snake_game_state == INIT) snake_game_state = PLAY;
             }
-            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case SNK_RGHT:
             if (snake_dir != LEFT && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(RIGHT);
                 snake_dir_buffer = RIGHT;
+                if (snake_game_state == INIT) snake_game_state = PLAY;
             }
-            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case SNK_DOWN:
             if (snake_dir != UP && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(DOWN);
                 snake_dir_buffer = DOWN;
+                if (snake_game_state == INIT) snake_game_state = PLAY;
             }
-            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case SNK_LEFT:
             if (snake_dir != RIGHT && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(LEFT);
                 snake_dir_buffer = LEFT;
+                if (snake_game_state == INIT) snake_game_state = PLAY;
             }
-            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case LC_CYC:
             if (record->event.pressed) {
@@ -1524,7 +1579,7 @@ void matrix_scan_user() {
             }
             int8_t ret = move_snake();
             if (ret == -1) { // collision -> lose
-                snake_game_state = LOSE;
+                if (!(snake_game_mode & CHEAT_MODE)) snake_game_state = LOSE;
                 dprint("snake game over\n");
             } else if (ret == 1) { // eat apple
                 eat_apple();
