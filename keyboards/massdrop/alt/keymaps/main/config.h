@@ -23,7 +23,7 @@
 
 #define SNAKE_FRAME_DELAY 300
 #define MAX_SNAKE_LENGTH 255
-#define NO_DIR_BUFFER 5
+#define MOVE_QUEUE_SIZE 2 // max 2 due to debounce issues
 
 #undef RGB_MATRIX_LED_FLUSH_LIMIT
 #define RGB_MATRIX_LED_FLUSH_LIMIT 16

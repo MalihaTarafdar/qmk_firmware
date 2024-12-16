@@ -560,6 +560,7 @@ typedef struct Position {
 } pos_t;
 
 enum direction {
+    NO_DIR,
     UP,
     RIGHT,
     DOWN,
@@ -577,7 +578,8 @@ pos_t snake[MAX_SNAKE_LENGTH];
 uint8_t snake_len;
 
 int snake_dir;
-int snake_dir_buffer;
+int snake_move_queue[MOVE_QUEUE_SIZE];
+uint8_t snake_move_queue_len;
 
 pos_t apple;
 
@@ -678,6 +680,45 @@ pos_t get_valid_pos(int8_t r, int8_t c, int dir) {
     return pos;
 }
 
+bool can_queue_move(int dir) {
+    if (snake_move_queue_len == MOVE_QUEUE_SIZE) {
+        return false;
+    }
+
+    int last_queued = snake_move_queue[snake_move_queue_len - 1];
+    switch (dir) {
+        case UP:
+            if (last_queued == UP || last_queued == DOWN) return false;
+            break;
+        case RIGHT:
+            if (last_queued == RIGHT || last_queued == LEFT) return false;
+            break;
+        case DOWN:
+            if (last_queued == DOWN || last_queued == UP) return false;
+            break;
+        case LEFT:
+            if (last_queued == LEFT || last_queued == RIGHT) return false;
+            break;
+    }
+
+    return true;
+}
+
+void queue_move(int dir) {
+    snake_move_queue[snake_move_queue_len] = dir;
+    snake_move_queue_len++;
+}
+
+int dequeue_move(void) {
+    if (snake_move_queue_len == 0) return NO_DIR;
+    int dir = snake_move_queue[0];
+    for (uint8_t i = 0; i < snake_move_queue_len; i++) {
+        snake_move_queue[i] = snake_move_queue[i + 1];
+    }
+    snake_move_queue_len--;
+    return dir;
+}
+
 void snake_init(void) {
     pos_t s0 = {.r = 2, .c = 5};
     snake[0] = s0;
@@ -685,8 +726,10 @@ void snake_init(void) {
     pos_t s1 = {.r = 2, .c = 4};
     snake[1] = s1;
 
+    memset(snake_move_queue, NO_DIR, sizeof(snake_move_queue));
+    snake_move_queue_len = 0;
     snake_dir = SNAKE_START_DIR;
-    snake_dir_buffer = NO_DIR_BUFFER;
+
     snake_len = SNAKE_START_LEN;
     apple = get_random_pos_not_on_snake();
     snake_timer = timer_read32();
@@ -971,30 +1014,30 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
         case SNK_UP:
-            if (snake_dir != DOWN && snake_dir_buffer == NO_DIR_BUFFER) {
-                change_snake_dir(UP);
-                snake_dir_buffer = UP;
+            if (can_queue_move(UP)) {
+                dprint("queueing move: UP\n");
+                queue_move(UP);
                 if (snake_game_state == INIT) snake_game_state = PLAY;
             }
             return false;
         case SNK_RGHT:
-            if (snake_dir != LEFT && snake_dir_buffer == NO_DIR_BUFFER) {
-                change_snake_dir(RIGHT);
-                snake_dir_buffer = RIGHT;
+            if (can_queue_move(RIGHT)) {
+                dprint("queueing move: RIGHT\n");
+                queue_move(RIGHT);
                 if (snake_game_state == INIT) snake_game_state = PLAY;
             }
             return false;
         case SNK_DOWN:
-            if (snake_dir != UP && snake_dir_buffer == NO_DIR_BUFFER) {
-                change_snake_dir(DOWN);
-                snake_dir_buffer = DOWN;
+            if (can_queue_move(DOWN)) {
+                dprint("queueing move: DOWN\n");
+                queue_move(DOWN);
                 if (snake_game_state == INIT) snake_game_state = PLAY;
             }
             return false;
         case SNK_LEFT:
-            if (snake_dir != RIGHT && snake_dir_buffer == NO_DIR_BUFFER) {
-                change_snake_dir(LEFT);
-                snake_dir_buffer = LEFT;
+            if (can_queue_move(LEFT)) {
+                dprint("queueing move: LEFT\n");
+                queue_move(LEFT);
                 if (snake_game_state == INIT) snake_game_state = PLAY;
             }
             return false;
@@ -1585,11 +1628,11 @@ void matrix_scan_user() {
     if (snake_game_state == PLAY || snake_game_state == HIGH_SCORE_CONTINUE) {
         if (timer_elapsed32(snake_timer) > SNAKE_FRAME_DELAY) {
             // move snake
-            if (snake_dir_buffer != NO_DIR_BUFFER) {
-                snake_dir = snake_dir_buffer;
-                snake_dir_buffer = NO_DIR_BUFFER;
-            }
+            int move = dequeue_move();
+            if (move != NO_DIR) change_snake_dir(move);
             int8_t ret = move_snake();
+
+            // update game
             if (ret == -1) { // collision -> lose
                 if (!(snake_game_mode & CHEAT_MODE)) snake_game_state = LOSE;
                 dprintf("snake game over, length: %u\n", snake_len);
