@@ -94,10 +94,14 @@ const uint8_t CYCLE_LC_MODE_START = 0;
 const uint8_t CYCLE_LC_MODE_END = 3;
 uint8_t lc_mode_index;
 const RGB RGB_MONOCHROMATIC = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
-const RGB RGB_DICHROMATIC = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+const RGB RGB_DICHROMATIC = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
 
 bool blink;
 uint32_t blink_timer;
+RGB blink_color;
+const RGB RGB_INDICATOR_1 = SET_RGB(RGB_CUSTOM_CYAN_R, RGB_CUSTOM_CYAN_G, RGB_CUSTOM_CYAN_B);
+const RGB RGB_INDICATOR_2 = SET_RGB(RGB_CUSTOM_MAGENTA_R, RGB_CUSTOM_MAGENTA_G, RGB_CUSTOM_MAGENTA_B);
+const RGB RGB_INDICATOR_3 = SET_RGB(RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RGB_CUSTOM_YELLOW_B);
 
 /* Custom Shortcuts
  * [NO] trigger -> replacement : description
@@ -522,7 +526,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______,                            XXXXXXX,                            _______, _______, XXXXXXX, XXXXXXX, XXXXXXX
     ),
     [_SNK] = LAYOUT_65_ansi_blocker(
-        KC_ESC, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        KC_ESC,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          SNK_UP,  XXXXXXX,
@@ -745,9 +749,10 @@ void eat_apple(void) {
 
 // =====================================================================================================================
 
-void keyboard_blink(void) {
+void keyboard_blink(RGB color) {
     blink = true;
     blink_timer = timer_read32();
+    blink_color = color;
 }
 
 // reperesent layer state (uint16_t) as a binary string for debug
@@ -832,7 +837,8 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 }
 
 bool dynamic_macro_record_start_user(int8_t direction) {
-    keyboard_blink();
+    RGB dm_blink_color = SET_RGB(RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+    keyboard_blink(dm_blink_color);
     return true;
 }
 
@@ -955,6 +961,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 mode_is_macos = (mode_index == M_MACOS);
                 mode_is_windows = (mode_index == M_WINDOWS);
 
+                if (mode_index == 0) {
+                    keyboard_blink(RGB_INDICATOR_1);
+                } else if (mode_index == 1) {
+                    keyboard_blink(RGB_INDICATOR_2);
+                } else if (mode_index == 2) {
+                    keyboard_blink(RGB_INDICATOR_3);
+                }
+
                 // write mode_index to EEPROM
                 user_config.mode_index = mode_index;
                 eeconfig_update_user(user_config.raw);
@@ -974,6 +988,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 set_single_persistent_default_layer(layout_index);
                 dprintf("layer turned on: %u\n", layout_index);
 
+                if (layout_index == 0) {
+                    keyboard_blink(RGB_INDICATOR_1);
+                } else if (layout_index == 1) {
+                    keyboard_blink(RGB_INDICATOR_2);
+                } else if (layout_index == 2) {
+                    keyboard_blink(RGB_INDICATOR_3);
+                }
+
                 // write layout_index to EEPROM
                 user_config.layout_index = layout_index;
                 eeconfig_update_user(user_config.raw);
@@ -984,7 +1006,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             // activate spam config
             if (record->event.pressed) {
                 spam_config_active = !spam_config_active;
-                keyboard_blink();
+                RGB spam_blink_color = SET_RGB(RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+                keyboard_blink(spam_blink_color);
                 dprintf("spam_config_active: %u\n", spam_config_active);
             }
             return false;
@@ -1163,7 +1186,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
             } else if (kc == KC_BRID || kc == KC_BRIU || kc == KC_MUTE || kc == KC_VOLD ||
                     kc == KC_VOLU || kc == KC_MPRV || kc == KC_MPLY || kc == KC_MNXT) {
                 if (lc_mode_index == LC_RGB) {
-                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    RGB rgb = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(1);
@@ -1171,7 +1194,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
             } else if (kc == DM_SPAM || kc == DM_REC1 || kc == DM_REC2 || kc == DM_PLY1 ||
                     kc == DM_PLY2) {
                 if (lc_mode_index == LC_RGB) {
-                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    RGB rgb = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(3);
@@ -1190,7 +1213,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(1);
                 }
-            } else if (kc == CYC_LT || kc == CYC_MD || kc == DBG_TST || kc == LC_CYC || kc == PLY_SNK) {
+            } else if (kc == DBG_TST || kc == LC_CYC) {
                 if (lc_mode_index == LC_RGB) {
                     RGB rgb = SET_RGB(RGB_CUSTOM_PURPLE_R, RGB_CUSTOM_PURPLE_G, RGB_CUSTOM_PURPLE_B);
                     return rgb;
@@ -1203,6 +1226,40 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(4);
+                }
+            } else if (kc == CYC_MD) {
+                if (lc_mode_index == LC_RGB) {
+                    if (mode_index == 0) {
+                        return RGB_INDICATOR_1;
+                    } else if (mode_index == 1) {
+                        return RGB_INDICATOR_2;
+                    } else if (mode_index == 2) {
+                        return RGB_INDICATOR_3;
+                    }
+                } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
+                    return get_mono_di_chromatic_rgb(2);
+                }
+            } else if (kc == CYC_LT) {
+                if (lc_mode_index == LC_RGB) {
+                    if (layout_index == 0) {
+                        return RGB_INDICATOR_1;
+                    } else if (layout_index == 1) {
+                        return RGB_INDICATOR_2;
+                    } else if (layout_index == 2) {
+                        return RGB_INDICATOR_3;
+                    }
+                } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
+                    return get_mono_di_chromatic_rgb(2);
+                }
+            } else if (kc == PLY_SNK) {
+                if (lc_mode_index == LC_RGB) {
+                    HSV hsv = rgb_matrix_config.hsv;
+                    uint8_t time = scale16by8(g_rgb_timer, qadd8(rgb_matrix_config.speed, 1));
+                    hsv.h += abs8(g_led_config.point[index].y - k_rgb_matrix_center_dup.y) + (g_led_config.point[index].x - time);
+                    RGB rgb = hsv_to_rgb(hsv);
+                    return rgb;
+                } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
+                    return get_mono_di_chromatic_rgb(2);
                 }
             } else {
                 if (lc_mode_index == LC_RGB) {
@@ -1217,7 +1274,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
             if (kc == MS_UP || kc == MS_DOWN || kc == MS_LEFT || kc == MS_RGHT || kc == MS_WHLU ||
                     kc == MS_WHLD || kc == MS_WHLL || kc == MS_WHLR) {
                 if (lc_mode_index == LC_RGB) {
-                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    RGB rgb = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(1);
@@ -1290,7 +1347,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                 }
             } else if (kc == RGB_HUI || kc == RGB_HUD) {
                 if (lc_mode_index == LC_RGB) {
-                    RGB rgb = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
+                    RGB rgb = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
                     return get_mono_di_chromatic_rgb(2);
@@ -1321,7 +1378,7 @@ bool rgb_matrix_indicators_user() {
     if (blink) {
         // blink LED strip only
         for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
-            rgb_matrix_set_color(i, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
+            rgb_matrix_set_color(i, blink_color.r, blink_color.g, blink_color.b);
         }
     }
 
