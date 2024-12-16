@@ -472,6 +472,7 @@ typedef union {
     uint8_t mode_index :2;
     uint8_t layout_index :2;
     uint8_t lc_mode_index :2;
+    uint8_t snake_high_score;
   };
 } user_config_t;
 user_config_t user_config;
@@ -544,6 +545,13 @@ enum direction {
     LEFT,
 };
 
+enum game_state {
+    NOT_INIT,
+    INIT,
+    PLAY,
+    LOSE
+};
+
 const pos_t SNAKE_START_POS = {.r = 2, .c = 4};
 const int SNAKE_START_DIR = RIGHT;
 const uint8_t SNAKE_START_LEN = 2;
@@ -556,8 +564,9 @@ int snake_dir_buffer;
 
 pos_t apple;
 
-bool snake_initialized;
-bool snake_start;
+uint8_t snake_high_score;
+uint8_t snake_score;
+int snake_game_state;
 
 uint32_t snake_timer;
 
@@ -645,8 +654,8 @@ void snake_init(void) {
     snake_len = SNAKE_START_LEN;
     apple = get_random_pos_not_on_snake();
     snake_timer = timer_read32();
-    snake_initialized = true;
-    snake_start = false;
+    snake_score = 0;
+    snake_game_state = INIT;
 
     dprintf("snake[0].r: %u, snake[0].c: %u\n", snake[0].r, snake[0].c);
     dprintf("apple.r: %u, apple.c: %u\n", apple.r, apple.c);
@@ -718,12 +727,17 @@ void eat_apple(void) {
         snake[0].r = apple.r;
         snake[0].c = apple.c;
         snake_len++;
+
+        // increase score
+        snake_score++;
+        if (snake_score > snake_high_score) {
+            snake_high_score = snake_score;
+        }
     }
 
     // generate new apple
     apple = get_random_pos_not_on_snake();
     dprintf("apple generated at: (%u, %u)\n", apple.r, apple.c);
-    debug_snake();
 }
 
 // =====================================================================================================================
@@ -779,7 +793,7 @@ void init_user(void) {
     rgb_timeout_init();
     blink_init();
 
-    snake_initialized = false;
+    snake_game_state = NOT_INIT;
 }
 
 void keyboard_post_init_user() {
@@ -796,6 +810,8 @@ void keyboard_post_init_user() {
         layout_index = user_config.layout_index;
 
         lc_mode_index = user_config.lc_mode_index;
+
+        snake_high_score = user_config.snake_high_score;
     }
 }
 
@@ -856,8 +872,16 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     dprintf("spam_config_active: %u\n", spam_config_active);
                     return false;
                 }
-                if (snake_initialized) {
-                    snake_initialized = false;
+                if (snake_game_state != NOT_INIT) {
+                    snake_game_state = NOT_INIT;
+
+                    // write snake_high_score to EEPROM
+                    if (snake_high_score > user_config.snake_high_score) {
+                        user_config.snake_high_score = snake_high_score;
+                        eeconfig_update_user(user_config.raw);
+                        dprintf("snake_high_score [EEPROM]: %u\n", user_config.snake_high_score);
+                    }
+
                     dprint("snake de-initialized\n");
                     layer_off(_SNK);
                     return false;
@@ -866,7 +890,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return true;
         case PLY_SNK:
             if (record->event.pressed) {
-                if (!snake_initialized) {
+                if (snake_game_state == NOT_INIT) {
                     snake_init();
                 }
                 layer_on(_SNK);
@@ -877,28 +901,28 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 change_snake_dir(UP);
                 snake_dir_buffer = UP;
             }
-            snake_start = true;
+            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case SNK_RGHT:
             if (snake_dir != LEFT && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(RIGHT);
                 snake_dir_buffer = RIGHT;
             }
-            snake_start = true;
+            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case SNK_DOWN:
             if (snake_dir != UP && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(DOWN);
                 snake_dir_buffer = DOWN;
             }
-            snake_start = true;
+            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case SNK_LEFT:
             if (snake_dir != RIGHT && snake_dir_buffer == NO_DIR_BUFFER) {
                 change_snake_dir(LEFT);
                 snake_dir_buffer = LEFT;
             }
-            snake_start = true;
+            if (snake_game_state == INIT) snake_game_state = PLAY;
             return false;
         case LC_CYC:
             if (record->event.pressed) {
@@ -1385,7 +1409,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 }
 
 void matrix_scan_user() {
-    if (snake_initialized && snake_start) {
+    if (snake_game_state == PLAY) {
         if (timer_elapsed32(snake_timer) > SNAKE_FRAME_DELAY) {
             // move snake
             if (snake_dir_buffer != NO_DIR_BUFFER) {
