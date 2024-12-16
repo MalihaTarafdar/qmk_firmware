@@ -540,8 +540,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 // ======================================================= SNAKE =======================================================
 
-#define NO_DIR_BUFFER 5
-
 enum game_mode {
     DEFAULT_MODE  = 0b00000001,
     CHEAT_MODE    = 0b00000010,
@@ -631,13 +629,13 @@ pos_t get_random_pos_not_on_snake(void) {
 }
 
 pos_t get_valid_pos(int8_t r, int8_t c, int dir) {
-    if (!(snake_game_mode & DEFAULT_MODE) || is_in_bounds(r, c)) {
+    if ((!(snake_game_mode & DEFAULT_MODE) && !(snake_game_mode & CHEAT_MODE)) || is_in_bounds(r, c)) {
         const int8_t mid = MATRIX_COLS / 2; // FIX: requires the row has mid LED
         uint8_t led[LED_HITS_TO_REMEMBER];
         uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
-        dprintf("get_valid_pos checking (%u, %u)\n", r, c);
 
         while (!is_in_bounds(r, c) || led_count == 0) {
+            dprintf("get_valid_pos in loop checking (%u, %u)\n", r, c);
             switch (dir) {
                 case UP:
                     if (snake_game_mode & WRAP_MODE && r < 0) {
@@ -673,7 +671,6 @@ pos_t get_valid_pos(int8_t r, int8_t c, int dir) {
                     break;
             }
             led_count = rgb_matrix_map_row_column_to_led(r, c, led);
-            dprintf("get_valid_pos in loop checking (%u, %u)\n", r, c);
         }
     }
 
@@ -768,7 +765,7 @@ void eat_apple(void) {
 
         // increase score
         snake_score++;
-        if (snake_score > snake_high_score) {
+        if (!(snake_game_mode & CHEAT_MODE) && snake_score > snake_high_score) {
             snake_high_score = snake_score;
             snake_game_state = HIGH_SCORE_CONTINUE;
         }
@@ -1466,10 +1463,25 @@ bool rgb_matrix_indicators_user() {
         if (snake_game_state != NOT_INIT) {
             // render snake
             RGB snake_color = SET_RGB(RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
+            HSV snake_color_hsv;
+            if (snake_game_mode & CHEAT_MODE) snake_color_hsv = rgb_to_hsv(snake_color);
+
             for (uint8_t s = 0; s < snake_len; s++) {
                 rgb_matrix_map_row_column_to_led(snake[s].r, snake[s].c, led);
+
+                if (snake_game_mode & CHEAT_MODE) {
+                    uint8_t h_start = 24;
+                    uint8_t h_end = 232;
+                    snake_color_hsv.h = h_start + ((h_end - h_start) / snake_len) * (snake_len - s);
+                    snake_color_hsv.h += 176;
+                    snake_color = hsv_to_rgb(snake_color_hsv);
+                } else {
+                    uint8_t g_start = 32;
+                    uint8_t g_end = 255;
+                    snake_color.g = g_start + ((g_end - g_start) / snake_len) * (snake_len - s);
+                }
+
                 rgb_matrix_set_color(led[0], snake_color.r, snake_color.g, snake_color.b);
-                if (snake_color.g - SNAKE_GRADIENT_DIFF > 0) snake_color.g -= SNAKE_GRADIENT_DIFF;
             }
 
             // render apple
@@ -1580,7 +1592,7 @@ void matrix_scan_user() {
             int8_t ret = move_snake();
             if (ret == -1) { // collision -> lose
                 if (!(snake_game_mode & CHEAT_MODE)) snake_game_state = LOSE;
-                dprint("snake game over\n");
+                dprintf("snake game over, length: %u\n", snake_len);
             } else if (ret == 1) { // eat apple
                 eat_apple();
             }
