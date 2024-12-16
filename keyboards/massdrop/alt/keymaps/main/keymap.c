@@ -530,6 +530,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 // ======================================================= SNAKE =======================================================
 
+#define NO_DIR_BUFFER 5
+
 typedef struct Position {
     uint8_t r;
     uint8_t c;
@@ -547,28 +549,55 @@ const int SNAKE_START_DIR = RIGHT;
 const uint8_t SNAKE_START_LEN = 2;
 
 pos_t snake[MAX_SNAKE_LENGTH];
-int snake_dir;
 uint8_t snake_len;
+
+int snake_dir;
+int snake_dir_buffer;
+
 pos_t apple;
+
 bool snake_initialized;
+bool snake_start;
 
 uint32_t snake_timer;
+
+void debug_snake(void) {
+    dprintf("snake(length: %u, dir: %u): ", snake_len, snake_dir);
+    for (uint8_t s = 0; s < snake_len; s++) {
+        dprintf("(%u, %u) ", snake[s].r, snake[s].c);
+    }
+    dprint("\n");
+}
+
+bool collision(pos_t pos1, pos_t pos2) {
+    return pos1.r == pos2.r && pos1.c == pos2.c;
+}
 
 bool is_in_bounds(uint8_t r, uint8_t c) {
     return r >= 0 && c >= 0 && r < MATRIX_ROWS && c < MATRIX_COLS;
 }
 
-pos_t get_random_pos(void) {
-    uint8_t r = random8_max(MATRIX_ROWS);
-    uint8_t c = random8_max(MATRIX_COLS);
+pos_t get_random_pos_not_on_snake(void) {
+    uint8_t r;
+    uint8_t c;
     uint8_t led[LED_HITS_TO_REMEMBER];
-    uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
+    uint8_t led_count;
+    bool snake_collision;
 
-    while (led_count == 0) {
+    do {
         r = random8_max(MATRIX_ROWS);
         c = random8_max(MATRIX_COLS);
         led_count = rgb_matrix_map_row_column_to_led(r, c, led);
-    }
+
+        // check snake collision
+        snake_collision = false;
+        for (uint8_t s = 0; s < snake_len; s++) {
+            if (r == snake[s].r && c == snake[s].c) {
+                snake_collision = true;
+                break;
+            }
+        }
+    } while (led_count == 0 || snake_collision);
 
     pos_t pos = {.r = r, .c = c};
     return pos;
@@ -584,8 +613,8 @@ pos_t get_valid_pos(uint8_t r, uint8_t c, int dir) {
             switch (dir) {
                 case UP:
                 case DOWN:
-                    if (c <= mid) c++;
-                    if (c > mid) c--;
+                    if (c < mid) c++;
+                    if (c >= mid) c--;
                     break;
                 case RIGHT:
                     c++;
@@ -602,6 +631,26 @@ pos_t get_valid_pos(uint8_t r, uint8_t c, int dir) {
 
     pos_t pos = {.r = r, .c = c};
     return pos;
+}
+
+void snake_init(void) {
+    pos_t s0 = {.r = 2, .c = 5};
+    snake[0] = s0;
+
+    pos_t s1 = {.r = 2, .c = 4};
+    snake[1] = s1;
+
+    snake_dir = SNAKE_START_DIR;
+    snake_dir_buffer = NO_DIR_BUFFER;
+    snake_len = SNAKE_START_LEN;
+    apple = get_random_pos_not_on_snake();
+    snake_timer = timer_read32();
+    snake_initialized = true;
+    snake_start = false;
+
+    dprintf("snake[0].r: %u, snake[0].c: %u\n", snake[0].r, snake[0].c);
+    dprintf("apple.r: %u, apple.c: %u\n", apple.r, apple.c);
+    dprintf("snake_dir: %u, snake_len: %u\n", snake_dir, snake_len);
 }
 
 void change_snake_dir(int dir) {
@@ -630,21 +679,26 @@ int8_t move_snake(void) {
     }
 
     // check snake collision
-    bool snake_collision = false;
+    for (uint8_t s = 0; s < snake_len; s++) {
+        if (collision(next_pos, snake[s])) {
+            dprintf("snake collision: head: (%u, %u), body: (%u, %u)\n", next_pos.r, next_pos.c, snake[s].r, snake[s].c);
+            return -1;
+        }
+    }
 
     // check out of bounds
     // TODO: implement wrap mode
-    if (!is_in_bounds(next_pos.r, next_pos.c) || snake_collision) {
+    if (!is_in_bounds(next_pos.r, next_pos.c)) {
         return -1;
     }
 
     // check apple
-    if (next_pos.r == apple.r && next_pos.c == apple.c) {
+    if (collision(next_pos, apple)) {
         return 1;
     }
 
     // move snake
-    for (uint8_t s = 1; s < snake_len; s++) {
+    for (uint8_t s = snake_len - 1; s > 0; s--) {
         snake[s].r = snake[s - 1].r;
         snake[s].c = snake[s - 1].c;
     }
@@ -654,24 +708,22 @@ int8_t move_snake(void) {
     return 0;
 }
 
-void snake_init(void) {
-    pos_t s0 = {.r = 2, .c = 5};
-    snake[0] = s0;
+void eat_apple(void) {
+    if (snake_len <= MAX_SNAKE_LENGTH) {
+        // extend snake
+        for (uint8_t s = snake_len; s > 0; s--) {
+            snake[s].r = snake[s - 1].r;
+            snake[s].c = snake[s - 1].c;
+        }
+        snake[0].r = apple.r;
+        snake[0].c = apple.c;
+        snake_len++;
+    }
 
-    pos_t s1 = {.r = 2, .c = 4};
-    snake[1] = s1;
-
-    snake_dir = SNAKE_START_DIR;
-    snake_len = SNAKE_START_LEN;
-    apple = get_random_pos();
-
-    snake_timer = timer_read32();
-
-    snake_initialized = true;
-
-    dprintf("snake[0].r: %u, snake[0].c: %u\n", snake[0].r, snake[0].c);
-    dprintf("apple.r: %u, apple.c: %u\n", apple.r, apple.c);
-    dprintf("snake_dir: %u, snake_len: %u\n", snake_dir, snake_len);
+    // generate new apple
+    apple = get_random_pos_not_on_snake();
+    dprintf("apple generated at: (%u, %u)\n", apple.r, apple.c);
+    debug_snake();
 }
 
 // =====================================================================================================================
@@ -821,16 +873,32 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
         case SNK_UP:
-            change_snake_dir(UP);
+            if (snake_dir != DOWN && snake_dir_buffer == NO_DIR_BUFFER) {
+                change_snake_dir(UP);
+                snake_dir_buffer = UP;
+            }
+            snake_start = true;
             return false;
         case SNK_RGHT:
-            change_snake_dir(RIGHT);
+            if (snake_dir != LEFT && snake_dir_buffer == NO_DIR_BUFFER) {
+                change_snake_dir(RIGHT);
+                snake_dir_buffer = RIGHT;
+            }
+            snake_start = true;
             return false;
         case SNK_DOWN:
-            change_snake_dir(DOWN);
+            if (snake_dir != UP && snake_dir_buffer == NO_DIR_BUFFER) {
+                change_snake_dir(DOWN);
+                snake_dir_buffer = DOWN;
+            }
+            snake_start = true;
             return false;
         case SNK_LEFT:
-            change_snake_dir(LEFT);
+            if (snake_dir != RIGHT && snake_dir_buffer == NO_DIR_BUFFER) {
+                change_snake_dir(LEFT);
+                snake_dir_buffer = LEFT;
+            }
+            snake_start = true;
             return false;
         case LC_CYC:
             if (record->event.pressed) {
@@ -1229,6 +1297,30 @@ bool rgb_matrix_indicators_user() {
             rgb_matrix_set_color(i, RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
         }
     }
+
+    if (get_highest_layer(layer_state) == _SNK) {
+        uint8_t led[LED_HITS_TO_REMEMBER];
+
+        // clear
+        rgb_matrix_set_color_all(0, 0, 0);
+
+        // render snake
+        RGB snake_color = SET_RGB(RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
+        for (uint8_t s = 0; s < snake_len; s++) {
+            rgb_matrix_map_row_column_to_led(snake[s].r, snake[s].c, led);
+            rgb_matrix_set_color(led[0], snake_color.r, snake_color.g, snake_color.b);
+            if (snake_color.g - SNAKE_GRADIENT_DIFF > 0) snake_color.g -= SNAKE_GRADIENT_DIFF;
+        }
+
+        // render apple
+        rgb_matrix_map_row_column_to_led(apple.r, apple.c, led);
+        rgb_matrix_set_color(led[0], RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
+
+        // LED strip
+        for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+            rgb_matrix_set_color(i, RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
+        }
+    }
     return true;
 }
 
@@ -1286,34 +1378,6 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
                 }
             }
             break;
-        case _SNK:
-            for (uint8_t row = 0; row < MATRIX_ROWS; ++row) {
-                for (uint8_t col = 0; col < MATRIX_COLS; ++col) {
-                    uint8_t index = g_led_config.matrix_co[row][col];
-
-                    if (index >= led_min && index < led_max && index != NO_LED) {
-                        rgb_matrix_set_color(index, 0, 0, 0);
-
-                        // render snake
-                        for (uint8_t s = 0; s < snake_len; s++) {
-                            if (snake[s].r == row && snake[s].c == col) {
-                                rgb_matrix_set_color(index, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
-                            }
-                        }
-
-                        // render apple
-                        if (apple.r == row && apple.c == col) {
-                            rgb_matrix_set_color(index, RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
-                        }
-                    }
-                }
-            }
-
-            // LED strip
-            for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
-                rgb_matrix_set_color(i, RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
-            }
-            break;
         default:
             break;
     }
@@ -1321,12 +1385,20 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 }
 
 void matrix_scan_user() {
-    if (snake_initialized) {
+    if (snake_initialized && snake_start) {
         if (timer_elapsed32(snake_timer) > SNAKE_FRAME_DELAY) {
             // move snake
-            move_snake();
-            // TODO: eat apple
-            // TODO: check lose cond
+            if (snake_dir_buffer != NO_DIR_BUFFER) {
+                snake_dir = snake_dir_buffer;
+                snake_dir_buffer = NO_DIR_BUFFER;
+            }
+            int8_t ret = move_snake();
+            if (ret == -1) { // collision -> lose
+                // TODO
+                dprint("snake lose\n");
+            } else if (ret == 1) { // eat apple
+                eat_apple();
+            }
 
             snake_timer = timer_read32();
         }
