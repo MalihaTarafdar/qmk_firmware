@@ -685,6 +685,24 @@ bool can_queue_move(int dir) {
         return false;
     }
 
+    if (snake_game_mode & INIT) {
+        switch (dir) {
+            case UP:
+                if (snake_dir == DOWN) return false;
+                break;
+            case RIGHT:
+                if (snake_dir == LEFT) return false;
+                break;
+            case DOWN:
+                if (snake_dir == UP) return false;
+                break;
+            case LEFT:
+                if (snake_dir == RIGHT) return false;
+                break;
+        }
+        return true;
+    }
+
     int last_queued = snake_move_queue[snake_move_queue_len - 1];
     switch (dir) {
         case UP:
@@ -1514,9 +1532,9 @@ bool rgb_matrix_indicators_user() {
 
                 if (snake_game_mode & CHEAT_MODE) {
                     uint8_t h_start = 24;
-                    uint8_t h_end = 232;
+                    uint8_t h_end = 224;
                     snake_color_hsv.h = h_start + ((h_end - h_start) / snake_len) * (snake_len - s);
-                    snake_color_hsv.h += 176;
+                    snake_color_hsv.h += 192;
                     snake_color = hsv_to_rgb(snake_color_hsv);
                 } else {
                     uint8_t g_start = 32;

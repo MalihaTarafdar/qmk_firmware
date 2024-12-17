@@ -126,7 +126,7 @@
 #define SET_RGB(R, G, B)  {.r = (R), .g = (G), .b = (B)}
 
 #define RGB_KEYS_R 80
-#define RGB_KEYS_G 190
+#define RGB_KEYS_G 195
 #define RGB_KEYS_B 255
 
 #define RGB_STRIP_R 130
