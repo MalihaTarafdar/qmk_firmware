@@ -8,6 +8,9 @@
 // NOTE: must toggle function layer instead of momentary activation to start recording dynamic macros
 // NOTE: key overrides must be enabled for MS_CLK action
 
+// TODO: refactor everything, modularize
+// TODO: maybe a memory game?
+
 #define LCG(kc) (QK_LCTL | QK_LGUI | (kc))
 
 uint8_t rgb_debug_led = 0;
@@ -33,7 +36,8 @@ enum alt_keycodes {
     SNK_UP,                   // move snake up
     SNK_DOWN,                 // move snake down
     SNK_LEFT,                 // move snake left
-    SNK_RGHT                  // move snake right
+    SNK_RGHT,                 // move snake right
+    SNK_RTY                   // snake game quick retry
 };
 
 enum layer_names {
@@ -531,7 +535,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [_SNK] = LAYOUT_65_ansi_blocker(
         KC_ESC,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, SNK_RTY, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,          SNK_UP,  XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX,                            XXXXXXX,                            XXXXXXX, XXXXXXX, SNK_LEFT,SNK_DOWN,SNK_RGHT
@@ -891,7 +895,6 @@ void spam_init(void) {
 }
 
 void init_user(void) {
-    debug_enable = true; // REMOVE
     // Linux/Windows mode enabled by default
     mode_index = M_LINUX;
     mode_is_linux_or_windows = true;
@@ -1029,6 +1032,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     snake_init();
                 }
                 layer_on(_SNK);
+            }
+            return false;
+        case SNK_RTY:
+            if (record->event.pressed) {
+                if (snake_game_state != NOT_INIT) {
+                    snake_game_state = NOT_INIT;
+
+                    // write snake_high_score to EEPROM
+                    if (snake_high_score > user_config.snake_high_score) {
+                        user_config.snake_high_score = snake_high_score;
+                        eeconfig_update_user(user_config.raw);
+                        dprintf("snake_high_score [EEPROM]: %u\n", user_config.snake_high_score);
+                    }
+
+                    dprint("snake de-initialized\n");
+
+                    snake_init();
+                }
             }
             return false;
         case SNK_UP:
@@ -1315,7 +1336,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                     RGB rgb = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
-                    return get_mono_di_chromatic_rgb(1);
+                    return get_mono_di_chromatic_rgb(2);
                 }
             } else if (kc == DM_SPAM || kc == DM_REC1 || kc == DM_REC2 || kc == DM_PLY1 ||
                     kc == DM_PLY2) {
@@ -1323,7 +1344,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                     RGB rgb = SET_RGB(RGB_CUSTOM_BLUE_R, RGB_CUSTOM_BLUE_G, RGB_CUSTOM_BLUE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
-                    return get_mono_di_chromatic_rgb(3);
+                    return get_mono_di_chromatic_rgb(2);
                 }
             } else if (kc == EE_CLR || kc == U_T_AUTO || kc == U_T_AGCR || kc == MD_BOOT) {
                 if (lc_mode_index == LC_RGB) {
@@ -1351,7 +1372,7 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                     RGB rgb = SET_RGB(RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
-                    return get_mono_di_chromatic_rgb(4);
+                    return get_mono_di_chromatic_rgb(3);
                 }
             } else if (kc == CYC_MD) {
                 if (lc_mode_index == LC_RGB) {
@@ -1410,14 +1431,14 @@ RGB get_layer_indicator_rgb(uint8_t layer, uint8_t index, uint16_t kc) {
                     RGB rgb = SET_RGB(RGB_CUSTOM_ORANGE_R, RGB_CUSTOM_ORANGE_G, RGB_CUSTOM_ORANGE_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
-                    return get_mono_di_chromatic_rgb(2);
+                    return get_mono_di_chromatic_rgb(3);
                 }
             } else if (kc == MS_ACL0 || kc == MS_ACL1 || kc == MS_ACL2) {
                 if (lc_mode_index == LC_RGB) {
                     RGB rgb = SET_RGB(RGB_CUSTOM_GREEN_R, RGB_CUSTOM_GREEN_G, RGB_CUSTOM_GREEN_B);
                     return rgb;
                 } else if (lc_mode_index == LC_MONOCHROMATIC || LC_DICHROMATIC) {
-                    return get_mono_di_chromatic_rgb(3);
+                    return get_mono_di_chromatic_rgb(2);
                 }
             } else if (kc == KC_SPC || kc == KC_LEFT || kc == KC_RGHT || kc == KC_UP || kc == KC_DOWN) {
                 if (lc_mode_index == LC_RGB) {
@@ -1534,7 +1555,7 @@ bool rgb_matrix_indicators_user() {
                     uint8_t h_start = 24;
                     uint8_t h_end = 224;
                     snake_color_hsv.h = h_start + ((h_end - h_start) / snake_len) * (snake_len - s);
-                    snake_color_hsv.h += 192;
+                    snake_color_hsv.h += 200;
                     snake_color = hsv_to_rgb(snake_color_hsv);
                 } else {
                     uint8_t g_start = 32;
@@ -1550,26 +1571,28 @@ bool rgb_matrix_indicators_user() {
             rgb_matrix_set_color(led[0], RGB_SNAKE_RED_R, RGB_SNAKE_RED_G, RGB_SNAKE_RED_B);
         }
 
-        if (snake_game_state == INIT || snake_game_state == PLAY) {
-            // LED strip
-            for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
-                if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
-                rgb_matrix_set_color(i, RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
-            }
-        } else if (snake_game_state == HIGH_SCORE_CONTINUE) {
-            for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
-                if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
-                HSV hsv = rgb_matrix_config.hsv;
-                uint8_t time = scale16by8(g_rgb_timer, qadd8(rgb_matrix_config.speed, 1));
-                hsv.h += abs8(g_led_config.point[i].y - k_rgb_matrix_center_dup.y) + (g_led_config.point[i].x - time);
-                RGB rgb = hsv_to_rgb(hsv);
-                rgb_matrix_set_color(i, rgb.r, rgb.g, rgb.b);
-            }
-        } else if (snake_game_state == LOSE) {
-            // LED strip
-            for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
-                if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
-                rgb_matrix_set_color(i, RGB_SNAKE_RED_R, RGB_SNAKE_RED_G, RGB_SNAKE_RED_B);
+        if (snake_game_state != NOT_INIT) {
+            if (snake_game_state == HIGH_SCORE_CONTINUE) {
+                for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                    if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
+                    HSV hsv = rgb_matrix_config.hsv;
+                    uint8_t time = scale16by8(g_rgb_timer, qadd8(rgb_matrix_config.speed, 1));
+                    hsv.h += abs8(g_led_config.point[i].y - k_rgb_matrix_center_dup.y) + (g_led_config.point[i].x - time);
+                    RGB rgb = hsv_to_rgb(hsv);
+                    rgb_matrix_set_color(i, rgb.r, rgb.g, rgb.b);
+                }
+            } else if (snake_game_state == LOSE) {
+                // LED strip
+                for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                    if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
+                    rgb_matrix_set_color(i, RGB_SNAKE_RED_R, RGB_SNAKE_RED_G, RGB_SNAKE_RED_B);
+                }
+            } else {
+                // LED strip
+                for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
+                    if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
+                    rgb_matrix_set_color(i, RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
+                }
             }
         }
     }
@@ -1652,8 +1675,17 @@ void matrix_scan_user() {
 
             // update game
             if (ret == -1) { // collision -> lose
-                if (!(snake_game_mode & CHEAT_MODE)) snake_game_state = LOSE;
-                dprintf("snake game over, length: %u\n", snake_len);
+                if (!(snake_game_mode & CHEAT_MODE)) {
+                    dprintf("snake game over, length: %u\n", snake_len);
+                    snake_game_state = LOSE;
+
+                    // write snake_high_score to EEPROM
+                    if (snake_high_score > user_config.snake_high_score) {
+                        user_config.snake_high_score = snake_high_score;
+                        eeconfig_update_user(user_config.raw);
+                        dprintf("snake_high_score [EEPROM]: %u\n", user_config.snake_high_score);
+                    }
+                }
             } else if (ret == 1) { // eat apple
                 eat_apple();
             }
