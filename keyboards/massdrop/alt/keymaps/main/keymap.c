@@ -111,7 +111,6 @@ const RGB RGB_INDICATOR_3 = SET_RGB(RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RG
  * [NO] trigger -> replacement : description
  *
  * Linux/Windows Mode
- * For the following shortcuts, only SFT may also be active.
  *     [1] ALT + LEFT -> CTL + LEFT : move word left
  *     [2] ALT + RGHT -> CTL + RGHT : move word right
  *     [3] CTL + LEFT -> HOME : move to beginning of line
@@ -689,7 +688,7 @@ bool can_queue_move(int dir) {
         return false;
     }
 
-    if (snake_game_mode & INIT) {
+    if (snake_game_state & INIT) {
         switch (dir) {
             case UP:
                 if (snake_dir == DOWN) return false;
@@ -707,7 +706,8 @@ bool can_queue_move(int dir) {
         return true;
     }
 
-    int last_queued = snake_move_queue[snake_move_queue_len - 1];
+    int last_queued = (snake_move_queue_len > 0) ? snake_move_queue[snake_move_queue_len - 1] : snake_dir;
+    // dprintf("last_queued: %d, snake_move_queue_len: %d\n", last_queued, snake_move_queue_len);
     switch (dir) {
         case UP:
             if (last_queued == UP || last_queued == DOWN) return false;
@@ -852,7 +852,7 @@ void keyboard_blink(RGB color) {
 // reperesent uint16_t as a binary string for debug
 char *uint16_t_to_binary_string(uint16_t n) {
     int num_bits = sizeof(uint16_t) * 8;
-    char *ret = malloc(num_bits);
+    char *ret = malloc(num_bits + 1);
 
     for (int i = num_bits - 1; i >= 0; i--) {
         ret[i] = (n & 1) + '0';
@@ -866,7 +866,7 @@ char *uint16_t_to_binary_string(uint16_t n) {
 // reperesent uint8_t as a binary string for debug
 char *uint8_t_to_binary_string(uint8_t n) {
     int num_bits = sizeof(uint8_t) * 8;
-    char *ret = malloc(num_bits);
+    char *ret = malloc(num_bits + 1);
 
     for (int i = num_bits - 1; i >= 0; i--) {
         ret[i] = (n & 1) + '0';
