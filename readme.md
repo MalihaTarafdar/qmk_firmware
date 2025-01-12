@@ -1,3 +1,24 @@
+# Fork of QMK
+## Setup
+Run the following command to clone this fork and set your QMK home directory. 
+
+```bash
+$ qmk setup -H <qmk_firmware directory> MalihaTarafdar/qmk_firmware
+```
+
+The default keyboard for this fork is the Massdrop ALT. 
+```bash
+$ qmk config user.keyboard=massdrop/alt
+```
+
+## Compile and Flash
+Run the following commands to compile and flash the main keymap. The Massdrop ALT uses the [mdloader](https://github.com/Massdrop/mdloader) bootloader. 
+```bash
+$ qmk compile -km main
+$ ./mdloader --first --download <compiled binary> --restart
+```
+
+---
 # Quantum Mechanical Keyboard Firmware
 
 [![Current Version](https://img.shields.io/github/tag/qmk/qmk_firmware.svg)](https://github.com/qmk/qmk_firmware/tags)

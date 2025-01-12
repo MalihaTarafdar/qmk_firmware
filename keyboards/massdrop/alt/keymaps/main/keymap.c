@@ -5,6 +5,11 @@
 #include "lib/lib8tion/scale8.h"
 #include "lib/lib8tion/trig8.h"
 
+// qmk setup -H <qmk_firmware directory> MalihaTarafdar/qmk_firmware
+// qmk config user.keyboard=massdrop/alt
+// qmk compile -km main
+// ./mdloader --first --download <keymap binary> --restart
+
 // NOTE: must toggle function layer instead of momentary activation to start recording dynamic macros
 // NOTE: key overrides must be enabled for MS_CLK action
 
@@ -634,7 +639,7 @@ pos_t get_random_pos_not_on_snake(void) {
 }
 
 pos_t get_valid_pos(int8_t r, int8_t c, int dir) {
-    if ((!(snake_game_mode & DEFAULT_MODE) && !(snake_game_mode & CHEAT_MODE)) || is_in_bounds(r, c)) {
+    if ((snake_game_mode & WRAP_MODE) || is_in_bounds(r, c)) {
         const int8_t mid = MATRIX_COLS / 2; // FIX: requires the row has mid LED
         uint8_t led[LED_HITS_TO_REMEMBER];
         uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
