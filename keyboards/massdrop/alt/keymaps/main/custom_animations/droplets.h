@@ -13,20 +13,8 @@ static const RGB D_RGB_KEYS = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
 static const RGB D_RGB_STRIP = SET_RGB(RGB_STRIP_R, RGB_STRIP_G, RGB_STRIP_B);
 static const RGB D_RGB_PRESS = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
 
-static uint32_t rgb_to_uint32(RGB rgb) {
-    return (rgb.r << 16) | (rgb.g << 8) | rgb.b;
-}
-
-static RGB uint32_to_rgb(uint32_t x) {
-    RGB rgb = {
-        .r = (x >> 16) & 0xFF,
-        .g = (x >> 8) & 0xFF,
-        .b = x & 0xFF
-    };
-    return rgb;
-}
-
 bool DROPLETS(effect_params_t* params) {
+    const uint8_t initial_value = rgb_to_hsv(D_RGB_KEYS).v;
 
     static uint32_t wait_timer = 0;
     if (wait_timer > g_rgb_timer) {
@@ -39,50 +27,39 @@ bool DROPLETS(effect_params_t* params) {
 
     if (params->init) {
         rgb_matrix_set_color_all(0, 0, 0);
-        for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
-            for (uint8_t c = 0; c < MATRIX_COLS; c++) {
-                g_rgb_frame_buffer[r][c] = rgb_to_uint32(D_RGB_KEYS);
-
-                // REMOVE debug
-                uint8_t led[LED_HITS_TO_REMEMBER];
-                uint8_t led_count = rgb_matrix_map_row_column_to_led(r, c, led);
-
-                if (led_count > 0) {
-                    if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
-
-                    RGB rgb = uint32_to_rgb(g_rgb_frame_buffer[r][c]);
-
-                    if (rgb.r != 0 || rgb.g != 0 || D_RGB_KEYS.b != rgb.b) {
-                        rgb_matrix_set_color(led[0], RGB_CUSTOM_RED_R, RGB_CUSTOM_RED_G, RGB_CUSTOM_RED_B);
-                    } else {
-                        rgb_matrix_set_color(led[0], rgb.r, rgb.g, rgb.b);
-                    }
-                }
-            }
-        }
+        memset(g_rgb_frame_buffer, initial_value, sizeof(g_rgb_frame_buffer));
     }
 
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     if (!rgb_matrix_check_finished_leds(led_max)) {
         // select LED to start effect
-        // uint8_t r;
-        // uint8_t c;
-        // bool valid_led = false;
+        uint8_t selected_r;
+        uint8_t selected_c;
+        bool valid_led = false;
 
-        // while (!valid_led) {
-        //     r = random8_max(MATRIX_ROWS);
-        //     c = random8_max(MATRIX_COLS);
-        //     uint8_t led_count = rgb_matrix_map_row_column_to_led(row, col, led);
+        while (!valid_led) {
+            selected_r = random8_max(MATRIX_ROWS);
+            selected_c = random8_max(MATRIX_COLS);
+            uint8_t led[LED_HITS_TO_REMEMBER];
+            uint8_t led_count = rgb_matrix_map_row_column_to_led(selected_r, selected_c, led);
 
-        //     if (led_count > 0) {
-        //         if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
+            if (led_count > 0) {
+                if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
 
-        //         HSV current_hsv = rgb_to_hsv(uint32_to_rgb(g_rgb_frame_buffer[r][c]));
-        //         if (current_hsv.v == rgb_to_hsv(D_RGB_KEYS).v) {
+                if (g_rgb_frame_buffer[selected_r][selected_c] == initial_value) {
+                    valid_led = true;
+                }
+            }
+        }
 
-        //         }
-        //     }
-        // }
+        // update framebuffer
+        for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
+            for (uint8_t c = 0; c < MATRIX_COLS; c++) {
+                if (selected_r == r && selected_c == c) {
+                    g_rgb_frame_buffer[r][c] = 0;
+                }
+            }
+        }
 
         // light LEDs based on framebuffer
         for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
@@ -92,8 +69,10 @@ bool DROPLETS(effect_params_t* params) {
 
                 if (led_count > 0) {
                     if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
-                    // RGB rgb = uint32_to_rgb(g_rgb_frame_buffer[r][c]);
-                    // rgb_matrix_set_color(led[0], rgb.r, rgb.g, rgb.b);
+                    HSV hsv = rgb_to_hsv(D_RGB_KEYS);
+                    hsv.v = g_rgb_frame_buffer[r][c];
+                    RGB rgb = hsv_to_rgb(hsv);
+                    rgb_matrix_set_color(led[0], rgb.r, rgb.g, rgb.b);
                 }
             }
         }
