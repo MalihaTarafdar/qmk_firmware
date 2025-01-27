@@ -5,7 +5,9 @@ RGB_MATRIX_EFFECT(DROPLETS)
 
 #       ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 
-// #include "host.h" // to check caps lock state
+#include "host.h" // to check caps lock state
+
+#define CAPS_LOCK_KEY 30 // hardcoded because there is no way to get the keycode
 
 typedef RGB (*d_reactive_f)(RGB rgb, uint16_t offset);
 
@@ -114,9 +116,16 @@ bool DROPLETS(effect_params_t* params) {
                 uint8_t b = D_RGB_KEYS.b;
 
                 RGB rgb = SET_RGB(r, g, b);
-                HSV hsv = rgb_to_hsv(rgb);
+
+                // make color complementary if caps lock is on
+                if (i == CAPS_LOCK_KEY && host_keyboard_led_state().caps_lock) {
+                    rgb.r = 255 - rgb.r;
+                    rgb.g = 255 - rgb.g;
+                    rgb.b = 255 - rgb.b;
+                }
 
                 // show animation
+                HSV hsv = rgb_to_hsv(rgb);
                 hsv.v = value;
                 if (rgb_matrix_config.hsv.v < 255) hsv.v = scale8(hsv.v, rgb_matrix_config.hsv.v);
 
@@ -131,10 +140,6 @@ bool DROPLETS(effect_params_t* params) {
         RGB_MATRIX_TEST_LED_FLAGS();
         rgb_matrix_set_color(i, D_RGB_STRIP.r, D_RGB_STRIP.g, D_RGB_STRIP.b);
     }
-
-    // if (host_keyboard_led_state().caps_lock) {
-    //     rgb_matrix_set_color_all(0, 0, 0);
-    // }
 
     return rgb_matrix_check_finished_leds(led_max);
 }
