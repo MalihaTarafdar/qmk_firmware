@@ -1,4 +1,4 @@
-// #ifdef RGB_MATRIX_FRAMEBUFFER_EFFECTS
+#ifdef RGB_MATRIX_FRAMEBUFFER_EFFECTS
 #   ifdef ENABLE_RGB_MATRIX_DROPLETS
 
 RGB_MATRIX_EFFECT(DROPLETS)
@@ -11,16 +11,14 @@ static const RGB D_RGB_KEYS = SET_RGB(RGB_KEYS_R, RGB_KEYS_G, RGB_KEYS_B);
 static const RGB D_RGB_STRIP = SET_RGB(RGB_STRIP_R, RGB_STRIP_G, RGB_STRIP_B);
 static const RGB D_RGB_PRESS = SET_RGB(RGB_PRESS_R, RGB_PRESS_G, RGB_PRESS_B);
 
-static uint8_t custom_rgb_frame_buffer[MATRIX_ROWS][MATRIX_COLS] = {{0}};
-
 #define DROPLET_CHANCE_CONSTANT 8 // (DROPLET_CHANCE_CONSTANT / 256) chance of a droplet starting on a key
 #define ANIMATION_STEPS 128 // cannot be larger than 128
 
 static void start_new_droplets(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            if (custom_rgb_frame_buffer[row][col] == 0 && random8() < 256 / DROPLET_CHANCE_CONSTANT) {
-                custom_rgb_frame_buffer[row][col] = 1;
+            if (g_rgb_frame_buffer[row][col] == 0 && random8() < 256 / DROPLET_CHANCE_CONSTANT) {
+                g_rgb_frame_buffer[row][col] = 1;
             }
         }
     }
@@ -29,11 +27,11 @@ static void start_new_droplets(void) {
 static void update_droplets(void) {
 	for (uint8_t col = 0; col < MATRIX_COLS; col++) {
 		for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-			if (custom_rgb_frame_buffer[row][col] > 0) {
-				custom_rgb_frame_buffer[row][col]++;
+			if (g_rgb_frame_buffer[row][col] > 0) {
+				g_rgb_frame_buffer[row][col]++;
 			}
-			if (custom_rgb_frame_buffer[row][col] >= 2 * ANIMATION_STEPS) {
-				custom_rgb_frame_buffer[row][col] = 0;
+			if (g_rgb_frame_buffer[row][col] >= 2 * ANIMATION_STEPS) {
+				g_rgb_frame_buffer[row][col] = 0;
 			}
 		}
 	}
@@ -46,11 +44,11 @@ bool DROPLETS(effect_params_t* params) {
 
     if (params->init) {
         rgb_matrix_set_color_all(0, 0, 0);
-        // randomly set custom_rgb_frame_buffer to increase variation
+        // randomly set g_rgb_frame_buffer to increase variation
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             for (uint8_t col = 0; col < MATRIX_COLS; col++) {
                 // upperbound is exclusive, but need to use 16-bit function to avoid overflow on argument
-                custom_rgb_frame_buffer[row][col] = (uint8_t) random16_max(ANIMATION_STEPS * 2);
+                g_rgb_frame_buffer[row][col] = (uint8_t) random16_max(ANIMATION_STEPS * 2);
             }
         }
     }
@@ -73,7 +71,7 @@ bool DROPLETS(effect_params_t* params) {
             if (led_count > 0) {
                 if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
 
-                uint8_t step = custom_rgb_frame_buffer[row][col];
+                uint8_t step = g_rgb_frame_buffer[row][col];
                 uint8_t value;
 
                 if (step == 0) { // not animating
@@ -105,4 +103,4 @@ bool DROPLETS(effect_params_t* params) {
 
 #       endif // RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 #   endif // ENABLE_RGB_MATRIX_DROPLETS
-// #endif // RGB_MATRIX_FRAMEBUFFER_EFFECTS
+#endif // RGB_MATRIX_FRAMEBUFFER_EFFECTS
