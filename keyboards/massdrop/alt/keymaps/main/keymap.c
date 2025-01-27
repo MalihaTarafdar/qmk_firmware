@@ -120,8 +120,6 @@ const RGB RGB_INDICATOR_3 = SET_RGB(RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RG
  *     [2] ALT + RGHT -> CTL + RGHT : move word right
  *     [3] CTL + LEFT -> HOME : move to beginning of line
  *     [4] CTL + RGHT -> END : move to end of line
- *     [5] ALT + UP -> CTL + UP : move to beginning of paragraph
- *     [6] ALT + DOWN -> CTL + DOWN : move to end of paragraph
  *     [7] CTL + UP -> CTL + HOME : move to beginning of document
  *     [8] CTL + DOWN -> CTL + END : move to end of document
  *     [9] ALT + BSPC -> CTL + BSPC : delete word left
@@ -130,6 +128,8 @@ const RGB RGB_INDICATOR_3 = SET_RGB(RGB_CUSTOM_YELLOW_R, RGB_CUSTOM_YELLOW_G, RG
  *     [12] CTL + DEL -> SFT + END, BSPC : delete to end of line
  *
  * Windows Mode
+ *     [5] ALT + UP -> CTL + UP : move to beginning of paragraph
+ *     [6] ALT + DOWN -> CTL + DOWN : move to end of paragraph
  *     [14] GUI + LEFT -> GUI + CTL + LEFT : move desktop left
  *     [15] GUI + RGHT -> GUI + CTL + RGHT : move desktop right
  *     [16] GUI + UP -> GUI + TAB : launch task view
@@ -227,7 +227,7 @@ const key_override_t shct5_override = {
         .context                                = NULL,
         .trigger                                = KC_UP,
         .replacement                            = LCTL(KC_UP),
-        .enabled                                = &mode_is_linux_or_windows
+        .enabled                                = &mode_is_windows
 };
 const key_override_t shct6_override = {
         .trigger_mods                           = MOD_MASK_ALT,
@@ -239,7 +239,7 @@ const key_override_t shct6_override = {
         .context                                = NULL,
         .trigger                                = KC_DOWN,
         .replacement                            = LCTL(KC_DOWN),
-        .enabled                                = &mode_is_linux_or_windows
+        .enabled                                = &mode_is_windows
 };
 const key_override_t shct7_override = {
         .trigger_mods                           = MOD_MASK_CTRL,
