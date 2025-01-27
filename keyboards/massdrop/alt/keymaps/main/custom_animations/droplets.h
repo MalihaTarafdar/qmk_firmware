@@ -1,9 +1,11 @@
-#ifdef RGB_MATRIX_FRAMEBUFFER_EFFECTS
+#if defined RGB_MATRIX_FRAMEBUFFER_EFFECTS && defined RGB_MATRIX_KEYREACTIVE_ENABLED
 #   ifdef ENABLE_RGB_MATRIX_DROPLETS
 
 RGB_MATRIX_EFFECT(DROPLETS)
 
 #       ifdef RGB_MATRIX_CUSTOM_EFFECT_IMPLS
+
+// #include "host.h" // to check caps lock state
 
 typedef RGB (*d_reactive_f)(RGB rgb, uint16_t offset);
 
@@ -65,11 +67,10 @@ bool DROPLETS(effect_params_t* params) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            uint8_t led[LED_HITS_TO_REMEMBER];
-            uint8_t led_count = rgb_matrix_map_row_column_to_led(row, col, led);
+            uint8_t i = g_led_config.matrix_co[row][col];
 
-            if (led_count > 0) {
-                if (!HAS_ANY_FLAGS(g_led_config.flags[led[0]], params->flags)) continue;
+            if (i != NO_LED) {
+                if (!HAS_ANY_FLAGS(g_led_config.flags[i], params->flags)) continue;
 
                 uint8_t step = g_rgb_frame_buffer[row][col];
                 uint8_t value;
@@ -84,10 +85,43 @@ bool DROPLETS(effect_params_t* params) {
                     }
                 }
 
-                HSV hsv = rgb_to_hsv(D_RGB_KEYS);
+                // keypress effects
+                uint16_t keypress_max_tick = 65535 / qadd8(rgb_matrix_config.speed, 1);
+                uint16_t keypress_tick = keypress_max_tick;
+
+                // reverse search to find most recent key hit
+                for (int8_t j = g_last_hit_tracker.count - 1; j >= 0; j--) {
+                    if (g_last_hit_tracker.index[j] == i && g_last_hit_tracker.tick[j] < keypress_tick) {
+                        keypress_tick = g_last_hit_tracker.tick[j];
+                        break;
+                    }
+                }
+
+                // scale keypress offset
+                uint16_t offset = scale16by8(keypress_tick, qadd8(rgb_matrix_config.speed, 1));
+                uint16_t scaled_offset = offset;
+#if CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+                scaled_offset = (offset * offset) / 255;
+#elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+                scaled_offset = (offset * offset * offset) / (255 * 255);
+#elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+                scaled_offset = (offset * offset * offset * offset) / (255 * 255 * 255);
+#endif
+
+                // invert offset & scale
+                uint8_t r = qsub8(D_RGB_KEYS.r, scale8(255 - scaled_offset, D_RGB_KEYS.r - D_RGB_PRESS.r));
+                uint8_t g = qsub8(D_RGB_KEYS.g, scale8(255 - scaled_offset, D_RGB_KEYS.g - D_RGB_PRESS.g));
+                uint8_t b = D_RGB_KEYS.b;
+
+                RGB rgb = SET_RGB(r, g, b);
+                HSV hsv = rgb_to_hsv(rgb);
+
+                // show animation
                 hsv.v = value;
-                RGB rgb = hsv_to_rgb(hsv);
-                rgb_matrix_set_color(led[0], rgb.r, rgb.g, rgb.b);
+                if (rgb_matrix_config.hsv.v < 255) hsv.v = scale8(hsv.v, rgb_matrix_config.hsv.v);
+
+                RGB rgb_f = hsv_to_rgb(hsv);
+                rgb_matrix_set_color(i, rgb_f.r, rgb_f.g, rgb_f.b);
             }
         }
     }
@@ -98,9 +132,13 @@ bool DROPLETS(effect_params_t* params) {
         rgb_matrix_set_color(i, D_RGB_STRIP.r, D_RGB_STRIP.g, D_RGB_STRIP.b);
     }
 
+    // if (host_keyboard_led_state().caps_lock) {
+    //     rgb_matrix_set_color_all(0, 0, 0);
+    // }
+
     return rgb_matrix_check_finished_leds(led_max);
 }
 
 #       endif // RGB_MATRIX_CUSTOM_EFFECT_IMPLS
 #   endif // ENABLE_RGB_MATRIX_DROPLETS
-#endif // RGB_MATRIX_FRAMEBUFFER_EFFECTS
+#endif // RGB_MATRIX_FRAMEBUFFER_EFFECTS && defined RGB_MATRIX_KEYREACTIVE_ENABLED

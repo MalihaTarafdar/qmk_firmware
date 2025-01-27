@@ -13,6 +13,7 @@
 // NOTE: must toggle function layer instead of momentary activation to start recording dynamic macros
 // NOTE: key overrides must be enabled for MS_CLK action
 
+// TODO: refactor rgb_matrix_map_row_column_to_led(row, col, led) to g_led_config.matrix_co[row][col]
 // TODO: refactor everything, modularize
 // TODO: maybe a memory game?
 
@@ -1542,12 +1543,13 @@ bool rgb_matrix_indicators_user() {
     }
 
     if (get_highest_layer(layer_state) == _SNK) {
-        uint8_t led[LED_HITS_TO_REMEMBER];
-
-        // clear
-        rgb_matrix_set_color_all(0, 0, 0);
-
+// ======================================================= SNAKE =======================================================
         if (snake_game_state != NOT_INIT) {
+            // clear
+            rgb_matrix_set_color_all(0, 0, 0);
+
+            uint8_t led[LED_HITS_TO_REMEMBER];
+
             // render snake
             RGB snake_color = SET_RGB(RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
             HSV snake_color_hsv;
@@ -1576,6 +1578,7 @@ bool rgb_matrix_indicators_user() {
             rgb_matrix_set_color(led[0], RGB_SNAKE_RED_R, RGB_SNAKE_RED_G, RGB_SNAKE_RED_B);
         }
 
+        // render LED strip
         if (snake_game_state != NOT_INIT) {
             if (snake_game_state == HIGH_SCORE_CONTINUE) {
                 for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
@@ -1587,13 +1590,11 @@ bool rgb_matrix_indicators_user() {
                     rgb_matrix_set_color(i, rgb.r, rgb.g, rgb.b);
                 }
             } else if (snake_game_state == LOSE) {
-                // LED strip
                 for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
                     if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
                     rgb_matrix_set_color(i, RGB_SNAKE_RED_R, RGB_SNAKE_RED_G, RGB_SNAKE_RED_B);
                 }
             } else {
-                // LED strip
                 for (int i = STRIP_START; i < RGB_MATRIX_LED_COUNT; i++) {
                     if (!HAS_ANY_FLAGS(g_led_config.flags[i], rgb_matrix_config.flags)) continue;
                     rgb_matrix_set_color(i, RGB_SNAKE_GREEN_R, RGB_SNAKE_GREEN_G, RGB_SNAKE_GREEN_B);
@@ -1601,10 +1602,9 @@ bool rgb_matrix_indicators_user() {
             }
         }
     }
-    return true;
-}
+// =====================================================================================================================
 
-bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    // layer effects
     uint8_t layer = get_highest_layer(layer_state);
     switch (layer) {
         case _FN:
@@ -1616,7 +1616,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
-                    if (index >= led_min && index < led_max && index != NO_LED) {
+                    if (index != NO_LED) {
                         RGB rgb = get_layer_indicator_rgb(layer, index, kc);
                         HSV hsv = rgb_to_hsv(rgb);
                         hsv.v = (lc_mode_index == LC_RGB) ? rgb_matrix_config.hsv.v : scale8(hsv.v, rgb_matrix_config.hsv.v);
@@ -1635,7 +1635,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
-                    if (index >= led_min && index < led_max && index != NO_LED) {
+                    if (index != NO_LED) {
                         RGB rgb = get_layer_indicator_rgb(layer, index, kc);
                         HSV hsv = rgb_to_hsv(rgb);
                         hsv.v = (lc_mode_index == LC_RGB) ? rgb_matrix_config.hsv.v : scale8(hsv.v, rgb_matrix_config.hsv.v);
@@ -1654,7 +1654,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
                     uint16_t kc = keymap_key_to_keycode(layer, (keypos_t){col,row});
 
-                    if (index >= led_min && index < led_max && index != NO_LED) {
+                    if (index != NO_LED) {
                         RGB rgb = get_layer_indicator_rgb(layer, index, kc);
                         HSV hsv = rgb_to_hsv(rgb);
                         hsv.v = (lc_mode_index == LC_RGB) ? rgb_matrix_config.hsv.v : scale8(hsv.v, rgb_matrix_config.hsv.v);
@@ -1667,6 +1667,12 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         default:
             break;
     }
+
+    return true;
+}
+
+bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    // NOTE: moved everything to rgb_matrix_indicators_user to override framebuffer effects
     return true;
 }
 
