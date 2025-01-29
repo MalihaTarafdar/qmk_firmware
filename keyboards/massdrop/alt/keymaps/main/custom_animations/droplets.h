@@ -124,6 +124,16 @@ bool DROPLETS(effect_params_t* params) {
                     rgb.b = 255 - rgb.b;
                 }
 
+                // scale value
+//                 uint16_t scaled_value = value;
+// #if CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 2 // quadratic scaling
+//                 scaled_value = (value * value) / 255;
+// #elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 3 // cubic scaling
+//                 scaled_value = (value * value * value) / (255 * 255);
+// #elif CUSTOM_RGB_MATRIX_KEYPRESS_SCALING == 4 // quartic scaling
+//                 scaled_value = (value * value * value * value) / (255 * 255 * 255);
+// #endif
+
                 // show animation
                 HSV hsv = rgb_to_hsv(rgb);
                 hsv.v = value;
